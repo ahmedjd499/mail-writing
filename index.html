@@ -23,44 +23,53 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Mobile-friendly improvements */
+        @media (max-width: 768px) {
+            .container { padding-left: 1rem; padding-right: 1rem; }
+        }
+        textarea { font-size: 16px !important; } /* Prevent zoom on iOS */
+        input { font-size: 16px !important; } /* Prevent zoom on iOS */
+        select { font-size: 16px !important; } /* Prevent zoom on iOS */
+    </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <div class="container mx-auto px-4 py-4 md:py-8 max-w-6xl">
         <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-indigo-900 mb-2">
-                <i class="fas fa-briefcase mr-3"></i>Job Application Email Generator
+        <div class="text-center mb-4 md:mb-8">
+            <h1 class="text-2xl md:text-4xl font-bold text-indigo-900 mb-2">
+                <i class="fas fa-briefcase mr-2 md:mr-3"></i>Job Application Email Generator
             </h1>
-            <p class="text-gray-600">Powered by Groq AI - Generate professional job application emails instantly</p>
+            <p class="text-sm md:text-base text-gray-600">Powered by Groq AI - Generate professional job application emails instantly</p>
         </div>
 
         <!-- API Key & Model Selection -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <div class="bg-white rounded-lg shadow-lg p-4 md:p-6 mb-4 md:mb-6">
+            <h2 class="text-lg md:text-xl font-semibold text-gray-800 mb-3 md:mb-4">
                 <i class="fas fa-key mr-2"></i>API Configuration
             </h2>
-            <div class="grid md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
-                    <label for="apiKey" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="apiKey" class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                         Groq API Key <span class="text-red-500">*</span>
                     </label>
                     <input 
                         type="password" 
                         id="apiKey" 
                         placeholder="Enter your Groq API key"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                     <p class="text-xs text-gray-500 mt-1">
                         Get your API key from <a href="https://console.groq.com/keys" target="_blank" class="text-indigo-600 hover:underline">Groq Console</a>
                     </p>
                 </div>
                 <div>
-                    <label for="model" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="model" class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                         AI Model
                     </label>
                     <select 
                         id="model"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     >
                         <optgroup label="🔥 Recommended for Text">
                             <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Best)</option>
@@ -94,141 +103,141 @@
         </div>
 
         <!-- Main Content -->
-        <div class="grid md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <!-- Input Section -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
+                <h2 class="text-lg md:text-xl font-semibold text-gray-800 mb-3 md:mb-4">
                     <i class="fas fa-clipboard mr-2"></i>Job Post Information
                 </h2>
                 
                 <!-- Screenshot Upload -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                <div class="mb-3 md:mb-4">
+                    <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-camera mr-1"></i>Upload Job Post Screenshot (Optional)
                     </label>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 md:p-3 mb-2">
                         <p class="text-xs text-blue-800">
                             <i class="fas fa-info-circle mr-1"></i>
-                            <strong>Tip:</strong> Use Vision Models (Llama 4 Scout/Maverick) for automatic text extraction from screenshots
+                            <strong>Tip:</strong> Use Vision Models for automatic text extraction
                         </p>
                     </div>
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
                         <input type="file" id="screenshotInput" accept="image/*" class="hidden">
-                        <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                        <p class="text-sm text-gray-600">Click to upload, drag & drop, or <strong>Ctrl+V to paste</strong></p>
+                        <i class="fas fa-cloud-upload-alt text-2xl md:text-3xl text-gray-400 mb-2"></i>
+                        <p class="text-xs md:text-sm text-gray-600">Click to upload, drag & drop, or <strong>Ctrl+V to paste</strong></p>
                         <p class="text-xs text-gray-400 mt-1">PNG, JPG, or GIF (Max 10MB)</p>
                     </div>
                     <div id="imagePreview" class="hidden mt-3">
-                        <img id="previewImg" class="max-h-48 rounded-lg mx-auto border border-gray-200">
-                        <button id="removeImage" class="mt-2 text-sm text-red-600 hover:text-red-800">
+                        <img id="previewImg" class="max-h-40 md:max-h-48 rounded-lg mx-auto border border-gray-200">
+                        <button id="removeImage" class="mt-2 text-xs md:text-sm text-red-600 hover:text-red-800">
                             <i class="fas fa-times mr-1"></i>Remove image
                         </button>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label for="jobPost" class="block text-sm font-medium text-gray-700 mb-2">
+                <div class="mb-3 md:mb-4">
+                    <label for="jobPost" class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         Or Paste Job Post (Text)
                     </label>
                     <textarea 
                         id="jobPost" 
-                        rows="8"
+                        rows="6"
                         placeholder="Paste the job description from LinkedIn or any other source..."
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                     ></textarea>
                 </div>
 
                 <!-- CV Upload -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                <div class="mb-3 md:mb-4">
+                    <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-file-pdf mr-1"></i>Upload Your CV/Resume <span class="text-red-500">*</span>
                     </label>
-                    <input type="file" id="cvInput" accept=".pdf,.doc,.docx,.txt" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
-                    <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, or TXT format (TXT recommended for best AI analysis)</p>
-                    <div id="cvStatus" class="hidden mt-2 text-sm text-green-600">
+                    <input type="file" id="cvInput" accept=".pdf,.doc,.docx,.txt" class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, or TXT (TXT recommended)</p>
+                    <div id="cvStatus" class="hidden mt-2 text-xs md:text-sm text-green-600">
                         <i class="fas fa-check-circle mr-1"></i><span id="cvFileName"></span>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label for="additionalInfo" class="block text-sm font-medium text-gray-700 mb-2">
+                <div class="mb-3 md:mb-4">
+                    <label for="additionalInfo" class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         Additional Information (Optional)
                     </label>
                     <textarea 
                         id="additionalInfo" 
-                        rows="4"
+                        rows="3"
                         placeholder="Add any specific requirements, your experience highlights, or preferences..."
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                     ></textarea>
                 </div>
 
                 <button 
                     id="generateBtn"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 flex items-center justify-center"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 md:px-6 rounded-lg transition duration-200 flex items-center justify-center text-sm md:text-base"
                 >
                     <i class="fas fa-magic mr-2"></i>Generate Application Email
                 </button>
             </div>
 
             <!-- Output Section -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
+                <h2 class="text-lg md:text-xl font-semibold text-gray-800 mb-3 md:mb-4">
                     <i class="fas fa-envelope mr-2"></i>Generated Email
                 </h2>
 
                 <!-- Extracted Job Info -->
-                <div id="jobInfoSection" class="hidden mb-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">
+                <div id="jobInfoSection" class="hidden mb-4 md:mb-6">
+                    <h3 class="text-base md:text-lg font-semibold text-gray-700 mb-2 md:mb-3">
                         <i class="fas fa-info-circle mr-2"></i>Extracted Job Information
                     </h3>
-                    <div id="jobInfo" class="bg-gray-50 p-4 rounded-lg space-y-2 text-sm"></div>
+                    <div id="jobInfo" class="bg-gray-50 p-3 md:p-4 rounded-lg space-y-2 text-xs md:text-sm"></div>
                 </div>
 
                 <!-- Email Content -->
                 <div id="emailSection" class="hidden">
                     <!-- Email Sending Form -->
-                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h3 class="text-sm font-semibold text-blue-900 mb-3">
+                    <div class="mb-4 md:mb-6 p-3 md:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="text-xs md:text-sm font-semibold text-blue-900 mb-2 md:mb-3">
                             <i class="fas fa-paper-plane mr-2"></i>Open in Email Client
                         </h3>
-                        <div class="space-y-3">
+                        <div class="space-y-2 md:space-y-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">To Email</label>
                                 <input type="email" id="toEmail" placeholder="recruiter@company.com" 
-                                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    class="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
                             <button 
                                 id="openMailtoBtn"
-                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-sm"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm"
                             >
                                 <i class="fas fa-envelope mr-2"></i>Open in Email Client
                             </button>
                             <p class="text-xs text-gray-600">
-                                <i class="fas fa-info-circle mr-1"></i>Opens your default email client (Gmail, Outlook, etc.) with the email ready to send.
+                                <i class="fas fa-info-circle mr-1"></i>Opens your default email client with the email ready to send.
                             </p>
                         </div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Subject Line</label>
-                        <div id="emailSubject" class="bg-gray-50 p-3 rounded-lg border border-gray-200"></div>
+                    <div class="mb-3 md:mb-4">
+                        <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">Subject Line</label>
+                        <div id="emailSubject" class="bg-gray-50 p-2 md:p-3 rounded-lg border border-gray-200 text-xs md:text-sm"></div>
                     </div>
                     
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email Body</label>
-                        <div id="emailBody" class="bg-gray-50 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap max-h-96 overflow-y-auto"></div>
+                    <div class="mb-3 md:mb-4">
+                        <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">Email Body</label>
+                        <div id="emailBody" class="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200 whitespace-pre-wrap max-h-64 md:max-h-96 overflow-y-auto text-xs md:text-sm"></div>
                     </div>
 
-                    <div class="flex gap-3">
+                    <div class="flex flex-col sm:flex-row gap-2 md:gap-3">
                         <button 
                             id="copyBtn"
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm"
                         >
                             <i class="fas fa-copy mr-2"></i>Copy Email
                         </button>
                         <button 
                             id="clearBtn"
-                            class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+                            class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm"
                         >
                             <i class="fas fa-trash mr-2"></i>Clear
                         </button>
@@ -236,21 +245,21 @@
                 </div>
 
                 <!-- Loading State -->
-                <div id="loadingState" class="hidden text-center py-12">
-                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-                    <p class="text-gray-600">Generating your professional email...</p>
+                <div id="loadingState" class="hidden text-center py-8 md:py-12">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 border-indigo-600 mb-3 md:mb-4"></div>
+                    <p class="text-sm md:text-base text-gray-600">Generating your professional email...</p>
                 </div>
 
                 <!-- Placeholder -->
-                <div id="placeholder" class="text-center py-12 text-gray-400">
-                    <i class="fas fa-envelope-open-text text-6xl mb-4"></i>
-                    <p>Your generated email will appear here</p>
+                <div id="placeholder" class="text-center py-8 md:py-12 text-gray-400">
+                    <i class="fas fa-envelope-open-text text-4xl md:text-6xl mb-3 md:mb-4"></i>
+                    <p class="text-sm md:text-base">Your generated email will appear here</p>
                 </div>
             </div>
         </div>
 
         <!-- Toast Notification -->
-        <div id="toast" class="hidden fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity">
+        <div id="toast" class="hidden fixed bottom-4 right-4 left-4 sm:left-auto bg-gray-800 text-white px-4 md:px-6 py-3 rounded-lg shadow-lg transition-opacity text-xs md:text-sm">
             <span id="toastMessage"></span>
         </div>
     </div>
