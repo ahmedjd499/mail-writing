@@ -32,12 +32,6 @@ const openMailtoBtn = document.getElementById('openMailtoBtn');
 const toEmail = document.getElementById('toEmail');
 const fromEmail = document.getElementById('fromEmail');
 const fromName = document.getElementById('fromName');
-const attachCV = document.getElementById('attachCV');
-
-// Gmail SMTP elements
-const gmailEmail = document.getElementById('gmailEmail');
-const gmailAppPassword = document.getElementById('gmailAppPassword');
-
 // State
 let uploadedScreenshot = null;
 let uploadedCV = null;
@@ -64,17 +58,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedModel = localStorage.getItem('selectedModel');
     if (savedModel) {
         modelSelect.value = savedModel;
-    }
-    
-    // Load Gmail settings
-    const savedGmailEmail = localStorage.getItem('gmailEmail');
-    if (savedGmailEmail) {
-        gmailEmail.value = savedGmailEmail;
-    }
-    
-    const savedGmailPassword = localStorage.getItem('gmailAppPassword');
-    if (savedGmailPassword) {
-        gmailAppPassword.value = savedGmailPassword;
     }
     
     // Load saved CV if exists
@@ -104,15 +87,6 @@ fromEmail.addEventListener('change', () => {
 
 fromName.addEventListener('change', () => {
     localStorage.setItem('fromName', fromName.value);
-});
-
-// Save Gmail settings
-gmailEmail.addEventListener('change', () => {
-    localStorage.setItem('gmailEmail', gmailEmail.value);
-});
-
-gmailAppPassword.addEventListener('change', () => {
-    localStorage.setItem('gmailAppPassword', gmailAppPassword.value);
 });
 
 // Screenshot Upload Handling
@@ -635,85 +609,6 @@ copyBtn.addEventListener('click', () => {
     }).catch(() => {
         showToast('Failed to copy email', 'error');
     });
-});
-
-// Send Email via Gmail SMTP
-sendEmailBtn.addEventListener('click', async () => {
-    const to = toEmail.value.trim();
-    const from = fromEmail.value.trim();
-    const name = fromName.value.trim();
-    const subject = emailSubject.textContent;
-    const body = emailBody.textContent;
-    const gmail = gmailEmail.value.trim();
-    const password = gmailAppPassword.value.trim();
-    
-    // Validation
-    if (!to) {
-        showToast('Please enter recipient email address', 'error');
-        return;
-    }
-    
-    if (!from) {
-        showToast('Please enter your email address', 'error');
-        return;
-    }
-    
-    if (!name) {
-        showToast('Please enter your name', 'error');
-        return;
-    }
-    
-    if (!gmail || !password) {
-        showToast('Please configure Gmail settings first', 'error');
-        return;
-    }
-    
-    try {
-        sendEmailBtn.disabled = true;
-        sendEmailBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
-        
-        // Prepare email with attachment
-        let emailParams = {
-            SecureToken: btoa(gmail + ':' + password), // Basic encoding
-            To: to,
-            From: gmail,
-            Subject: subject,
-            Body: body.replace(/\n/g, '<br>')
-        };
-        
-        // Add CV attachment if checked and available
-        if (attachCV.checked && cvFileData) {
-            emailParams.Attachments = [{
-                name: cvFileData.name,
-                data: cvFileData.data
-            }];
-        }
-        
-        // Send via SMTP.js
-        await Email.send({
-            Host: "smtp.gmail.com",
-            Username: gmail,
-            Password: password,
-            To: to,
-            From: gmail,
-            Subject: subject,
-            Body: body.replace(/\n/g, '<br>'),
-            Attachments: attachCV.checked && cvFileData ? [{
-                name: cvFileData.name,
-                data: cvFileData.data.split(',')[1] // Remove data:type prefix
-            }] : undefined
-        });
-        
-        showToast('Email sent successfully via Gmail! ✅', 'success');
-        localStorage.setItem('lastRecipientEmail', to);
-        
-    } catch (error) {
-        console.error('Email sending error:', error);
-        showToast('Failed to send email: ' + (error.message || 'Please check your Gmail settings'), 'error');
-    } finally {
-        sendEmailBtn.disabled = false;
-        sendEmailBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send via Gmail';
-    }
 });
 
 // Open Mailto (traditional email client)
