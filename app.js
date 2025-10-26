@@ -16,12 +16,19 @@ const placeholder = document.getElementById('placeholder');
 const toast = document.getElementById('toast');
 const toastMessage = document.getElementById('toastMessage');
 
+// Modal elements
+const settingsModal = document.getElementById('settingsModal');
+const openSettingsBtn = document.getElementById('openSettingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
 // New elements for screenshot and CV
 const screenshotInput = document.getElementById('screenshotInput');
 const cameraInput = document.getElementById('cameraInput');
 const galleryInput = document.getElementById('galleryInput');
 const takePhotoBtn = document.getElementById('takePhotoBtn');
 const chooseFileBtn = document.getElementById('chooseFileBtn');
+const pasteBtn = document.getElementById('pasteBtn');
 const dropZone = document.getElementById('dropZone');
 const imagePreview = document.getElementById('imagePreview');
 const previewImg = document.getElementById('previewImg');
@@ -72,6 +79,31 @@ apiKeyInput.addEventListener('change', () => {
     localStorage.setItem('groqApiKey', apiKeyInput.value);
 });
 
+// Modal handlers
+openSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+});
+
+saveSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    showToast('Settings saved successfully!', 'success');
+});
+
+// Close modal when clicking outside
+settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) {
+        settingsModal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+});
+
 // Screenshot Upload Handling
 // Desktop: Drag & Drop Zone
 if (dropZone) {
@@ -108,6 +140,38 @@ if (takePhotoBtn) {
 if (chooseFileBtn) {
     chooseFileBtn.addEventListener('click', () => {
         galleryInput.click();
+    });
+}
+
+// Mobile: Paste button
+if (pasteBtn) {
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            // Check if Clipboard API is supported
+            if (!navigator.clipboard || !navigator.clipboard.read) {
+                showToast('Paste not supported on this device', 'error');
+                return;
+            }
+            
+            const clipboardItems = await navigator.clipboard.read();
+            
+            for (const clipboardItem of clipboardItems) {
+                for (const type of clipboardItem.types) {
+                    if (type.startsWith('image/')) {
+                        const blob = await clipboardItem.getType(type);
+                        const file = new File([blob], 'pasted-image.png', { type: blob.type });
+                        handleScreenshotUpload(file);
+                        showToast('Image pasted successfully!', 'success');
+                        return;
+                    }
+                }
+            }
+            
+            showToast('No image found in clipboard', 'error');
+        } catch (error) {
+            console.error('Paste error:', error);
+            showToast('Failed to paste. Try copying the image again.', 'error');
+        }
     });
 }
 
