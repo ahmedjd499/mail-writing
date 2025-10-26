@@ -226,19 +226,40 @@ cvInput.addEventListener('change', async (e) => {
                 showToast('CV uploaded and content extracted successfully', 'success');
             };
             textReader.readAsText(file);
-        } else if (file.type === 'application/pdf') {
-            // For PDF files, we'll extract text using the Groq API
+        } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            // For PDF files, extract text using PDF.js
+            showToast('Extracting text from PDF...', 'info');
             const pdfReader = new FileReader();
             pdfReader.onload = async (event) => {
-                const base64PDF = event.target.result;
-                cvText = `[CV File: ${file.name} - PDF format]`;
-                
-                // Save basic info to localStorage
-                localStorage.setItem('cvFileName', file.name);
-                localStorage.setItem('cvText', cvText);
-                showToast('CV uploaded successfully (PDF format)', 'success');
+                try {
+                    const arrayBuffer = event.target.result;
+                    
+                    // Load PDF.js library if not already loaded
+                    if (typeof pdfjsLib === 'undefined') {
+                        await loadPDFJSLibrary();
+                    }
+                    
+                    // Extract text from PDF
+                    const extractedText = await extractTextFromPDF(arrayBuffer);
+                    
+                    if (extractedText && extractedText.trim().length > 0) {
+                        cvText = extractedText;
+                        localStorage.setItem('cvFileName', file.name);
+                        localStorage.setItem('cvText', cvText);
+                        showToast('CV text extracted successfully from PDF!', 'success');
+                        console.log('PDF text extracted, length:', cvText.length);
+                    } else {
+                        throw new Error('No text content found in PDF');
+                    }
+                } catch (error) {
+                    console.error('PDF extraction error:', error);
+                    cvText = `[CV File: ${file.name} - PDF text extraction failed: ${error.message}]`;
+                    localStorage.setItem('cvFileName', file.name);
+                    localStorage.setItem('cvText', cvText);
+                    showToast('Failed to extract text from PDF. Try converting to .txt format.', 'error');
+                }
             };
-            pdfReader.readAsDataURL(file);
+            pdfReader.readAsArrayBuffer(file);
         } else {
             cvText = `[CV File: ${file.name}]`;
             localStorage.setItem('cvFileName', file.name);
@@ -397,6 +418,9 @@ Return ONLY the JSON object, no additional text.`;
 // Generate Email using Groq
 async function generateEmail(apiKey, model, jobPost, additionalInfo, jobInfoData) {
     let cvContext = '';
+    console.log('CV Text Length:', cvText.length);
+    console.log('CV Text Preview:', cvText.substring(0, 200));
+    
     if (cvText && cvText.length > 50) { // Make sure we have actual content
         cvContext = `\n\nCandidate's CV/Resume Content:\n${cvText}\n\nIMPORTANT: Use the specific information from the CV above to personalize the email. Mention relevant experience, skills, projects, and qualifications that match the job requirements. Be specific and reference actual details from the CV.`;
     } else if (cvText) {
@@ -729,4 +753,52 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.classList.add('hidden');
     }, 3000);
+}
+
+// Load PDF.js library dynamically
+async function loadPDFJSLibrary() {
+    return new Promise((resolve, reject) => {
+        if (typeof pdfjsLib !== 'undefined') {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+            // Set worker path
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            resolve();
+        };
+        script.onerror = () => reject(new Error('Failed to load PDF.js library'));
+        document.head.appendChild(script);
+    });
+}
+
+// Extract text from PDF using PDF.js
+async function extractTextFromPDF(arrayBuffer) {
+    try {
+        // Load the PDF document
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const numPages = pdf.numPages;
+        let fullText = '';
+        
+        // Extract text from each page
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // Combine text items with proper spacing
+            const pageText = textContent.items
+                .map(item => item.str)
+                .join(' ');
+            
+            fullText += pageText + '\n\n';
+        }
+        
+        return fullText.trim();
+    } catch (error) {
+        console.error('Error extracting text from PDF:', error);
+        throw error;
+    }
 }
