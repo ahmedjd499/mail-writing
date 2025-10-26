@@ -90,7 +90,16 @@ fromName.addEventListener('change', () => {
 });
 
 // Screenshot Upload Handling
-dropZone.addEventListener('click', () => {
+dropZone.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    screenshotInput.click();
+});
+
+// Add touch support for mobile
+dropZone.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     screenshotInput.click();
 });
 
@@ -121,53 +130,76 @@ screenshotInput.addEventListener('change', (e) => {
 
 removeImage.addEventListener('click', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     uploadedScreenshot = null;
     screenshotInput.value = '';
     imagePreview.classList.add('hidden');
     dropZone.classList.remove('hidden');
 });
 
-// Clipboard Paste Handling for Images
-document.addEventListener('paste', (e) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+// Clipboard Paste Handling for Images (Desktop only)
+if (!isMobileDevice()) {
+    document.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
         
-        // Check if the item is an image
-        if (item.type.startsWith('image/')) {
-            e.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-                handleScreenshotUpload(file);
-                showToast('Image pasted from clipboard!', 'success');
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            
+            // Check if the item is an image
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) {
+                    handleScreenshotUpload(file);
+                    showToast('Image pasted from clipboard!', 'success');
+                }
+                break;
             }
-            break;
         }
-    }
-});
+    });
+    
+    // Visual feedback for paste availability (Desktop only)
+    window.addEventListener('focus', () => {
+        dropZone.setAttribute('title', 'Press Ctrl+V to paste an image from clipboard');
+    });
+}
 
-// Visual feedback for paste availability
-window.addEventListener('focus', () => {
-    dropZone.setAttribute('title', 'Press Ctrl+V to paste an image from clipboard');
-});
+// Helper function to detect mobile devices
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+}
 
 async function handleScreenshotUpload(file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showToast('Please upload an image file', 'error');
+        return;
+    }
+    
     if (file.size > 10 * 1024 * 1024) {
         showToast('Image size must be less than 10MB', 'error');
         return;
     }
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        uploadedScreenshot = e.target.result;
-        previewImg.src = e.target.result;
-        imagePreview.classList.remove('hidden');
-        dropZone.classList.add('hidden');
-        showToast('Screenshot uploaded successfully', 'success');
-    };
-    reader.readAsDataURL(file);
+    try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            uploadedScreenshot = e.target.result;
+            previewImg.src = e.target.result;
+            imagePreview.classList.remove('hidden');
+            dropZone.classList.add('hidden');
+            showToast('Screenshot uploaded successfully', 'success');
+        };
+        reader.onerror = () => {
+            showToast('Failed to read image file', 'error');
+        };
+        reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('Error uploading screenshot:', error);
+        showToast('Failed to upload screenshot', 'error');
+    }
 }
 
 // CV Upload Handling

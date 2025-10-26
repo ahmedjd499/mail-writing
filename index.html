@@ -122,9 +122,12 @@
                         </p>
                     </div>
                     <div class="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 text-center hover:border-indigo-500 transition-colors cursor-pointer" id="dropZone">
-                        <input type="file" id="screenshotInput" accept="image/*" class="hidden">
+                        <input type="file" id="screenshotInput" accept="image/*" capture="environment" class="hidden">
                         <i class="fas fa-cloud-upload-alt text-2xl md:text-3xl text-gray-400 mb-2"></i>
-                        <p class="text-xs md:text-sm text-gray-600">Click to upload, drag & drop, or <strong>Ctrl+V to paste</strong></p>
+                        <p class="text-xs md:text-sm text-gray-600">
+                            <span class="hidden md:inline">Click to upload, drag & drop, or <strong>Ctrl+V to paste</strong></span>
+                            <span class="md:hidden"><strong>Tap to upload</strong> or take a photo</span>
+                        </p>
                         <p class="text-xs text-gray-400 mt-1">PNG, JPG, or GIF (Max 10MB)</p>
                     </div>
                     <div id="imagePreview" class="hidden mt-3">
