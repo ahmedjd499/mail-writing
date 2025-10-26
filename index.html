@@ -3,7 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered job application email generator using Groq API. Generate professional emails instantly.">
+    <meta name="theme-color" content="#4F46E5">
     <title>Job Application Email Generator</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon_io/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon_io/favicon-16x16.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="favicon_io/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Email Gen">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -238,6 +255,75 @@
         </div>
     </div>
 
+    <!-- Install Prompt -->
+    <div id="installPrompt" class="hidden fixed bottom-4 left-4 right-4 bg-white rounded-lg shadow-2xl p-4 border-2 border-indigo-500 z-50 max-w-md mx-auto">
+        <div class="flex items-start gap-3">
+            <div class="bg-indigo-100 p-2 rounded-lg">
+                <i class="fas fa-download text-indigo-600 text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="font-bold text-gray-900 mb-1">Install App</h3>
+                <p class="text-sm text-gray-600 mb-3">Install this app on your device for quick access and offline use!</p>
+                <div class="flex gap-2">
+                    <button id="installBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                        <i class="fas fa-plus mr-1"></i>Install
+                    </button>
+                    <button id="dismissInstallBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+                        Later
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
+    
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registered:', reg.scope))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+
+        // Install Prompt
+        let deferredPrompt;
+        const installPrompt = document.getElementById('installPrompt');
+        const installBtn = document.getElementById('installBtn');
+        const dismissInstallBtn = document.getElementById('dismissInstallBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install prompt after 2 seconds
+            setTimeout(() => {
+                installPrompt.classList.remove('hidden');
+            }, 2000);
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response: ${outcome}`);
+            
+            deferredPrompt = null;
+            installPrompt.classList.add('hidden');
+        });
+
+        dismissInstallBtn.addEventListener('click', () => {
+            installPrompt.classList.add('hidden');
+        });
+
+        // Show message if app is already installed
+        window.addEventListener('appinstalled', () => {
+            installPrompt.classList.add('hidden');
+            showToast('App installed successfully! 🎉', 'success');
+        });
+    </script>
 </body>
 </html>
