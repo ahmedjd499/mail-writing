@@ -18,6 +18,10 @@ const toastMessage = document.getElementById('toastMessage');
 
 // New elements for screenshot and CV
 const screenshotInput = document.getElementById('screenshotInput');
+const cameraInput = document.getElementById('cameraInput');
+const galleryInput = document.getElementById('galleryInput');
+const takePhotoBtn = document.getElementById('takePhotoBtn');
+const chooseFileBtn = document.getElementById('chooseFileBtn');
 const dropZone = document.getElementById('dropZone');
 const imagePreview = document.getElementById('imagePreview');
 const previewImg = document.getElementById('previewImg');
@@ -69,38 +73,53 @@ apiKeyInput.addEventListener('change', () => {
 });
 
 // Screenshot Upload Handling
-dropZone.addEventListener('click', (e) => {
-    screenshotInput.click();
-});
+// Desktop: Drag & Drop Zone
+if (dropZone) {
+    dropZone.addEventListener('click', (e) => {
+        screenshotInput.click();
+    });
 
-// Add touch support for mobile
-dropZone.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    screenshotInput.click();
-});
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+    });
 
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
-});
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+    });
 
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
-});
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            handleScreenshotUpload(file);
+        }
+    });
+}
 
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-        handleScreenshotUpload(file);
-    }
-});
+// Mobile: Separate buttons for camera and gallery
+if (takePhotoBtn) {
+    takePhotoBtn.addEventListener('click', () => {
+        cameraInput.click();
+    });
+}
 
-screenshotInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        handleScreenshotUpload(file);
+if (chooseFileBtn) {
+    chooseFileBtn.addEventListener('click', () => {
+        galleryInput.click();
+    });
+}
+
+// Handle all file inputs
+[screenshotInput, cameraInput, galleryInput].forEach(input => {
+    if (input) {
+        input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleScreenshotUpload(file);
+            }
+        });
     }
 });
 
@@ -108,9 +127,11 @@ removeImage.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     uploadedScreenshot = null;
-    screenshotInput.value = '';
+    if (screenshotInput) screenshotInput.value = '';
+    if (cameraInput) cameraInput.value = '';
+    if (galleryInput) galleryInput.value = '';
     imagePreview.classList.add('hidden');
-    dropZone.classList.remove('hidden');
+    if (dropZone) dropZone.classList.remove('hidden');
 });
 
 // Clipboard Paste Handling for Images (Desktop only)
@@ -165,7 +186,7 @@ async function handleScreenshotUpload(file) {
             uploadedScreenshot = e.target.result;
             previewImg.src = e.target.result;
             imagePreview.classList.remove('hidden');
-            dropZone.classList.add('hidden');
+            if (dropZone) dropZone.classList.add('hidden');
             showToast('Screenshot uploaded successfully', 'success');
         };
         reader.onerror = () => {
