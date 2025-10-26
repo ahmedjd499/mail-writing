@@ -143,34 +143,98 @@ if (chooseFileBtn) {
     });
 }
 
-// Mobile: Paste button
+// Mobile: Paste button with enhanced mobile support
 if (pasteBtn) {
     pasteBtn.addEventListener('click', async () => {
         try {
-            // Check if Clipboard API is supported
-            if (!navigator.clipboard || !navigator.clipboard.read) {
-                showToast('Paste not supported on this device', 'error');
-                return;
-            }
-            
-            const clipboardItems = await navigator.clipboard.read();
-            
-            for (const clipboardItem of clipboardItems) {
-                for (const type of clipboardItem.types) {
-                    if (type.startsWith('image/')) {
-                        const blob = await clipboardItem.getType(type);
-                        const file = new File([blob], 'pasted-image.png', { type: blob.type });
-                        handleScreenshotUpload(file);
-                        showToast('Image pasted successfully!', 'success');
-                        return;
+            // Method 1: Try modern Clipboard API first
+            if (navigator.clipboard && navigator.clipboard.read) {
+                try {
+                    const clipboardItems = await navigator.clipboard.read();
+                    
+                    for (const clipboardItem of clipboardItems) {
+                        for (const type of clipboardItem.types) {
+                            if (type.startsWith('image/')) {
+                                const blob = await clipboardItem.getType(type);
+                                const file = new File([blob], 'pasted-image.png', { type: blob.type });
+                                handleScreenshotUpload(file);
+                                showToast('Image pasted successfully!', 'success');
+                                return;
+                            }
+                        }
                     }
+                } catch (clipboardError) {
+                    console.log('Clipboard API failed, trying fallback:', clipboardError);
                 }
             }
             
-            showToast('No image found in clipboard', 'error');
+            // Method 2: Create a temporary contenteditable div for paste
+            showToast('Please paste your image now...', 'info');
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.contentEditable = true;
+            tempDiv.style.position = 'fixed';
+            tempDiv.style.top = '50%';
+            tempDiv.style.left = '50%';
+            tempDiv.style.transform = 'translate(-50%, -50%)';
+            tempDiv.style.width = '80%';
+            tempDiv.style.maxWidth = '400px';
+            tempDiv.style.padding = '20px';
+            tempDiv.style.backgroundColor = '#fff';
+            tempDiv.style.border = '2px solid #6366f1';
+            tempDiv.style.borderRadius = '8px';
+            tempDiv.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            tempDiv.style.zIndex = '10000';
+            tempDiv.style.fontSize = '16px';
+            tempDiv.style.color = '#333';
+            tempDiv.innerHTML = 'Tap here and paste your image (Ctrl+V or long-press → Paste)';
+            
+            document.body.appendChild(tempDiv);
+            tempDiv.focus();
+            
+            // Handle paste event
+            const handlePasteEvent = (e) => {
+                e.preventDefault();
+                const items = e.clipboardData?.items;
+                
+                if (items) {
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        
+                        if (item.type.startsWith('image/')) {
+                            const file = item.getAsFile();
+                            if (file) {
+                                handleScreenshotUpload(file);
+                                showToast('Image pasted successfully!', 'success');
+                                cleanup();
+                                return;
+                            }
+                        }
+                    }
+                }
+                
+                showToast('No image found. Try copying the image again.', 'error');
+                cleanup();
+            };
+            
+            const cleanup = () => {
+                tempDiv.removeEventListener('paste', handlePasteEvent);
+                document.body.removeChild(tempDiv);
+            };
+            
+            tempDiv.addEventListener('paste', handlePasteEvent);
+            
+            // Auto-cleanup after 15 seconds
+            setTimeout(() => {
+                if (document.body.contains(tempDiv)) {
+                    cleanup();
+                    showToast('Paste cancelled', 'info');
+                }
+            }, 15000);
+            
         } catch (error) {
             console.error('Paste error:', error);
-            showToast('Failed to paste. Try copying the image again.', 'error');
+            showToast('Paste failed. Please use Camera or Gallery instead.', 'error');
         }
     });
 }
