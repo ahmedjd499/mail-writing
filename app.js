@@ -465,40 +465,68 @@ Return ONLY the JSON object.`;
     
     try {
         // Try to find JSON in markdown code blocks first
-        let jsonStr = response;
+        let jsonStr = response.trim();
         
         // Remove markdown code block markers if present
-        jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
         
         // Find the JSON object
         const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            // Ensure we have both subject and body
-            if (parsed.subject && parsed.body) {
-                return parsed;
+            let jsonText = jsonMatch[0];
+            
+            // Try parsing directly first
+            try {
+                const parsed = JSON.parse(jsonText);
+                if (parsed.subject && parsed.body) {
+                    return parsed;
+                }
+            } catch (parseError) {
+                console.log('Direct JSON parse failed, trying cleanup...');
+                
+                // Extract subject and body using regex with better control character handling
+                const subjectMatch = jsonText.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+                const bodyMatch = jsonText.match(/"body"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
+                
+                if (subjectMatch && bodyMatch) {
+                    // Properly unescape the strings
+                    const subject = subjectMatch[1]
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\r/g, '\r')
+                        .replace(/\\t/g, '\t')
+                        .replace(/\\"/g, '"')
+                        .replace(/\\\\/g, '\\');
+                    
+                    const body = bodyMatch[1]
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\r/g, '\r')
+                        .replace(/\\t/g, '\t')
+                        .replace(/\\"/g, '"')
+                        .replace(/\\\\/g, '\\');
+                    
+                    return { subject, body };
+                }
             }
         }
         throw new Error('Invalid JSON response');
     } catch (e) {
         console.error('JSON parsing error:', e);
         console.log('Raw response:', response);
-        // If parsing fails, try to extract subject and body manually
-        const subjectMatch = response.match(/"subject":\s*"([^"]+)"/i);
-        const bodyMatch = response.match(/"body":\s*"([\s\S]+?)"\s*\}/i);
         
-        if (subjectMatch && bodyMatch) {
-            return {
-                subject: subjectMatch[1],
-                body: bodyMatch[1].replace(/\\n/g, '\n')
-            };
+        // Final fallback: extract any text that looks like subject/body
+        const lines = response.split('\n');
+        let subject = `Application for ${jobInfoData.jobTitle} Position`;
+        let body = response;
+        
+        // Try to find subject line
+        for (const line of lines) {
+            if (line.toLowerCase().includes('subject') && line.includes(':')) {
+                subject = line.split(':').slice(1).join(':').trim().replace(/["']/g, '');
+                break;
+            }
         }
         
-        // Last resort: return the raw response
-        return {
-            subject: `Application for ${jobInfoData.jobTitle} Position`,
-            body: response
-        };
+        return { subject, body };
     }
 }
 
