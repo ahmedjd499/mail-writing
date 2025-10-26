@@ -27,11 +27,9 @@ const cvStatus = document.getElementById('cvStatus');
 const cvFileName = document.getElementById('cvFileName');
 
 // Email sending elements
-const sendEmailBtn = document.getElementById('sendEmailBtn');
 const openMailtoBtn = document.getElementById('openMailtoBtn');
 const toEmail = document.getElementById('toEmail');
-const fromEmail = document.getElementById('fromEmail');
-const fromName = document.getElementById('fromName');
+
 // State
 let uploadedScreenshot = null;
 let uploadedCV = null;
@@ -43,16 +41,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedApiKey = localStorage.getItem('groqApiKey');
     if (savedApiKey) {
         apiKeyInput.value = savedApiKey;
-    }
-    
-    const savedFromEmail = localStorage.getItem('fromEmail');
-    if (savedFromEmail) {
-        fromEmail.value = savedFromEmail;
-    }
-    
-    const savedFromName = localStorage.getItem('fromName');
-    if (savedFromName) {
-        fromName.value = savedFromName;
     }
     
     const savedModel = localStorage.getItem('selectedModel');
@@ -80,26 +68,14 @@ apiKeyInput.addEventListener('change', () => {
     localStorage.setItem('groqApiKey', apiKeyInput.value);
 });
 
-// Save email info to localStorage
-fromEmail.addEventListener('change', () => {
-    localStorage.setItem('fromEmail', fromEmail.value);
-});
-
-fromName.addEventListener('change', () => {
-    localStorage.setItem('fromName', fromName.value);
-});
-
 // Screenshot Upload Handling
 dropZone.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
     screenshotInput.click();
 });
 
 // Add touch support for mobile
 dropZone.addEventListener('touchend', (e) => {
     e.preventDefault();
-    e.stopPropagation();
     screenshotInput.click();
 });
 
