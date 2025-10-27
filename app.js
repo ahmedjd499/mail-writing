@@ -402,10 +402,17 @@ async function extractTextFromImage(apiKey, model, imageBase64) {
 
 // Extract Job Information using Groq
 async function extractJobInfo(apiKey, model, jobPost) {
+    // Add CV context for portfolio extraction
+    let cvContextForExtraction = '';
+    if (cvText && cvText.length > 50) {
+        cvContextForExtraction = `\n\nCandidate's CV/Resume:\n${cvText}\n\nIMPORTANT: Also extract the candidate's portfolio URL from the CV if available (look for portfolio, website, or vercel.app links).`;
+    }
+    
     const prompt = `Extract the following information from this job post and return ONLY a valid JSON object with these exact keys:
 
 Job Post:
 ${jobPost}
+${cvContextForExtraction}
 
 Return a JSON object with these fields (use "Not specified" if information is not available):
 {
@@ -415,14 +422,13 @@ Return a JSON object with these fields (use "Not specified" if information is no
     "jobType": "full-time/part-time/contract/etc",
     "experience": "required experience level",
     "skills": "key skills required (comma-separated)",
-    "recruiterEmail": "recruiter or contact email if provided in the post"
+    "recruiterEmail": "recruiter or contact email if provided in the post",
+    "portfolioUrl": "candidate's portfolio URL from CV (if provided)"
 }
 
-IMPORTANT: Look for email addresses in the job post. Common patterns include:
-- "Contact us at: email@example.com"
-- "Send your resume to: email@example.com"
-- "Apply at: email@example.com"
-- Any email address mentioned for applications
+IMPORTANT: 
+- Look for email addresses in the job post for recruiterEmail
+- Look for portfolio/website URLs in the CV for portfolioUrl (common patterns: https://...vercel.app, https://portfolio..., etc.)
 
 Return ONLY the JSON object, no additional text.`;
 
@@ -444,7 +450,8 @@ Return ONLY the JSON object, no additional text.`;
             jobType: "Not specified",
             experience: "Not specified",
             skills: "Not specified",
-            recruiterEmail: "Not specified"
+            recruiterEmail: "Not specified",
+            portfolioUrl: "Not specified"
         };
     }
 }
@@ -452,13 +459,19 @@ Return ONLY the JSON object, no additional text.`;
 // Generate Email using Groq
 async function generateEmail(apiKey, model, jobPost, additionalInfo, jobInfoData) {
     let cvContext = '';
+    
     console.log('CV Text Length:', cvText.length);
     console.log('CV Text Preview:', cvText.substring(0, 200));
     
+    // Get portfolio URL from extracted job info (AI extracted it)
+    const portfolioUrl = jobInfoData.portfolioUrl && jobInfoData.portfolioUrl !== "Not specified" 
+        ? jobInfoData.portfolioUrl 
+        : '';
+    
     if (cvText && cvText.length > 50) { // Make sure we have actual content
-        cvContext = `\n\nCandidate's CV/Resume Content:\n${cvText}\n\nIMPORTANT: Use the specific information from the CV above to personalize the email. Mention relevant experience, skills, projects, and qualifications that match the job requirements. Be specific and reference actual details from the CV.`;
+        cvContext = `\n\nCandidate's CV/Resume Content:\n${cvText}\n\n${portfolioUrl ? `Candidate's Portfolio: ${portfolioUrl}\n\n` : ''}IMPORTANT: Use the information from the CV to understand the candidate's background, but DON'T list or describe individual projects in detail. Instead, briefly mention relevant skills and experience (2-3 key points max), then ${portfolioUrl ? 'ALWAYS include a reference to the portfolio website where they can see detailed projects and work samples' : 'mention that detailed work samples are available upon request'}. Keep the email concise and professional.`;
     } else if (cvText) {
-        cvContext = `\n\nNote: CV file uploaded (${cvText}). Write a general professional email expressing interest and qualifications.`;
+        cvContext = `\n\nNote: CV file uploaded (${cvText}). ${portfolioUrl ? `Portfolio: ${portfolioUrl}` : ''}. Write a general professional email expressing interest and qualifications${portfolioUrl ? ', and reference the portfolio' : ''}.`;
     }
     
     const prompt = `You are a professional job application email writer. Based on the following job post and information, write a compelling and professional job application email.
@@ -479,13 +492,13 @@ Instructions:
 2. Write a compelling email body that:
    - Addresses the hiring manager professionally
    - Expresses genuine interest in the position
-   - Highlights relevant skills and experience from the CV (be specific!)
+   - Briefly highlights relevant skills and experience (2-3 key points max)
    - Shows enthusiasm for the company/role
-   - Mentions specific qualifications that match the job requirements
+   - IMPORTANT: Instead of listing projects, ${portfolioUrl ? `direct them to the portfolio website (${portfolioUrl})` : 'mention that work samples and project details are available upon request'}
    - Includes a strong call to action
    - Maintains a professional yet personable tone
-   - Is concise (3-4 paragraphs)
-   - References the CV attachment
+   - Is concise (3 short paragraphs maximum)
+   - References ${portfolioUrl ? 'both the CV attachment and portfolio website' : 'the CV attachment'}
 
 Format your response as JSON:
 {
@@ -622,6 +635,15 @@ function displayJobInfo(jobInfoData) {
                 <span class="font-semibold text-gray-600">Key Skills:</span>
                 <p class="text-gray-800">${jobInfoData.skills}</p>
             </div>
+            ${jobInfoData.portfolioUrl && jobInfoData.portfolioUrl !== "Not specified" ? `
+            <div class="col-span-2">
+                <span class="font-semibold text-gray-600">Portfolio:</span>
+                <p class="text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-globe text-indigo-600"></i>
+                    <a href="${jobInfoData.portfolioUrl}" target="_blank" class="text-indigo-600 hover:underline">${jobInfoData.portfolioUrl}</a>
+                </p>
+            </div>
+            ` : ''}
             ${jobInfoData.recruiterEmail && jobInfoData.recruiterEmail !== "Not specified" ? `
             <div class="col-span-2">
                 <span class="font-semibold text-gray-600">Recruiter Email:</span>
@@ -639,6 +661,11 @@ function displayJobInfo(jobInfoData) {
     if (jobInfoData.recruiterEmail && jobInfoData.recruiterEmail !== "Not specified") {
         toEmail.value = jobInfoData.recruiterEmail;
         showToast('Recruiter email auto-filled!', 'success');
+    }
+    
+    // Show portfolio extracted notification
+    if (jobInfoData.portfolioUrl && jobInfoData.portfolioUrl !== "Not specified") {
+        showToast('Portfolio URL extracted from CV!', 'success');
     }
 }
 
