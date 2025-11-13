@@ -52,12 +52,12 @@ window.addEventListener('DOMContentLoaded', () => {
     if (savedApiKey) {
         apiKeyInput.value = savedApiKey;
     }
-    
+
     const savedModel = localStorage.getItem('selectedModel');
     if (savedModel) {
         modelSelect.value = savedModel;
     }
-    
+
     // Load saved CV if exists
     const savedCVName = localStorage.getItem('cvFileName');
     const savedCVText = localStorage.getItem('cvText');
@@ -170,10 +170,10 @@ if (!isMobileDevice()) {
     document.addEventListener('paste', (e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
-        
+
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
-            
+
             // Check if the item is an image
             if (item.type.startsWith('image/')) {
                 e.preventDefault();
@@ -186,7 +186,7 @@ if (!isMobileDevice()) {
             }
         }
     });
-    
+
     // Visual feedback for paste availability (Desktop only)
     window.addEventListener('focus', () => {
         dropZone.setAttribute('title', 'Press Ctrl+V to paste an image from clipboard');
@@ -196,7 +196,7 @@ if (!isMobileDevice()) {
 // Helper function to detect mobile devices
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 }
 
 async function handleScreenshotUpload(file) {
@@ -205,12 +205,12 @@ async function handleScreenshotUpload(file) {
         showToast('Please upload an image file', 'error');
         return;
     }
-    
+
     if (file.size > 10 * 1024 * 1024) {
         showToast('Image size must be less than 10MB', 'error');
         return;
     }
-    
+
     try {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -237,7 +237,7 @@ cvInput.addEventListener('change', async (e) => {
         uploadedCV = file;
         cvFileName.textContent = file.name;
         cvStatus.classList.remove('hidden');
-        
+
         // Store file for attachment
         const attachReader = new FileReader();
         attachReader.onload = (event) => {
@@ -248,7 +248,7 @@ cvInput.addEventListener('change', async (e) => {
             };
         };
         attachReader.readAsDataURL(file);
-        
+
         // Read CV content for text extraction
         if (file.type === 'text/plain') {
             const textReader = new FileReader();
@@ -267,15 +267,15 @@ cvInput.addEventListener('change', async (e) => {
             pdfReader.onload = async (event) => {
                 try {
                     const arrayBuffer = event.target.result;
-                    
+
                     // Load PDF.js library if not already loaded
                     if (typeof pdfjsLib === 'undefined') {
                         await loadPDFJSLibrary();
                     }
-                    
+
                     // Extract text from PDF
                     const extractedText = await extractTextFromPDF(arrayBuffer);
-                    
+
                     if (extractedText && extractedText.trim().length > 0) {
                         cvText = extractedText;
                         localStorage.setItem('cvFileName', file.name);
@@ -326,7 +326,7 @@ generateBtn.addEventListener('click', async () => {
 
     try {
         let jobPostText = jobPost;
-        
+
         // If screenshot is uploaded, extract text from it first
         if (uploadedScreenshot && !jobPost) {
             showToast('Extracting text from screenshot...', 'info');
@@ -353,7 +353,7 @@ generateBtn.addEventListener('click', async () => {
 async function extractTextFromImage(apiKey, model, imageBase64) {
     try {
         showToast('Extracting text from image using Vision AI...', 'info');
-        
+
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -391,7 +391,7 @@ async function extractTextFromImage(apiKey, model, imageBase64) {
 
         const data = await response.json();
         const extractedText = data.choices[0].message.content;
-        
+
         showToast('Text extracted successfully!', 'success');
         return extractedText;
     } catch (error) {
@@ -407,7 +407,7 @@ async function extractJobInfo(apiKey, model, jobPost) {
     if (cvText && cvText.length > 50) {
         cvContextForExtraction = `\n\nCandidate's CV/Resume:\n${cvText}\n\nIMPORTANT: Also extract the candidate's portfolio URL from the CV if available (look for portfolio, website, or vercel.app links).`;
     }
-    
+
     const prompt = `Extract the following information from this job post and return ONLY a valid JSON object with these exact keys:
 
 Job Post:
@@ -433,7 +433,7 @@ IMPORTANT:
 Return ONLY the JSON object, no additional text.`;
 
     const response = await callGroqAPI(apiKey, model, prompt);
-    
+
     try {
         // Try to parse the response as JSON
         const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -459,21 +459,21 @@ Return ONLY the JSON object, no additional text.`;
 // Generate Email using Groq
 async function generateEmail(apiKey, model, jobPost, additionalInfo, jobInfoData) {
     let cvContext = '';
-    
+
     console.log('CV Text Length:', cvText.length);
     console.log('CV Text Preview:', cvText.substring(0, 200));
-    
+
     // Get portfolio URL from extracted job info (AI extracted it)
-    const portfolioUrl = jobInfoData.portfolioUrl && jobInfoData.portfolioUrl !== "Not specified" 
-        ? jobInfoData.portfolioUrl 
+    const portfolioUrl = jobInfoData.portfolioUrl && jobInfoData.portfolioUrl !== "Not specified"
+        ? jobInfoData.portfolioUrl
         : '';
-    
+
     if (cvText && cvText.length > 50) { // Make sure we have actual content
         cvContext = `\n\nCandidate's CV/Resume Content:\n${cvText}\n\n${portfolioUrl ? `Candidate's Portfolio: ${portfolioUrl}\n\n` : ''}IMPORTANT: Use the information from the CV to understand the candidate's background, but DON'T list or describe individual projects in detail. Instead, briefly mention relevant skills and experience (2-3 key points max), then ${portfolioUrl ? 'ALWAYS include a reference to the portfolio website where they can see detailed projects and work samples' : 'mention that detailed work samples are available upon request'}. Keep the email concise and professional.`;
     } else if (cvText) {
         cvContext = `\n\nNote: CV file uploaded (${cvText}). ${portfolioUrl ? `Portfolio: ${portfolioUrl}` : ''}. Write a general professional email expressing interest and qualifications${portfolioUrl ? ', and reference the portfolio' : ''}.`;
     }
-    
+
     const prompt = `You are a professional job application email writer. Based on the following job post and information, write a compelling and professional job application email.
 
 Job Post:
@@ -509,19 +509,19 @@ Format your response as JSON:
 Return ONLY the JSON object.`;
 
     const response = await callGroqAPI(apiKey, model, prompt);
-    
+
     try {
         // Try to find JSON in markdown code blocks first
         let jsonStr = response.trim();
-        
+
         // Remove markdown code block markers if present
         jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        
+
         // Find the JSON object
         const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             let jsonText = jsonMatch[0];
-            
+
             // Try parsing directly first
             try {
                 const parsed = JSON.parse(jsonText);
@@ -530,11 +530,11 @@ Return ONLY the JSON object.`;
                 }
             } catch (parseError) {
                 console.log('Direct JSON parse failed, trying cleanup...');
-                
+
                 // Extract subject and body using regex with better control character handling
                 const subjectMatch = jsonText.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
                 const bodyMatch = jsonText.match(/"body"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
-                
+
                 if (subjectMatch && bodyMatch) {
                     // Properly unescape the strings
                     const subject = subjectMatch[1]
@@ -543,14 +543,14 @@ Return ONLY the JSON object.`;
                         .replace(/\\t/g, '\t')
                         .replace(/\\"/g, '"')
                         .replace(/\\\\/g, '\\');
-                    
+
                     const body = bodyMatch[1]
                         .replace(/\\n/g, '\n')
                         .replace(/\\r/g, '\r')
                         .replace(/\\t/g, '\t')
                         .replace(/\\"/g, '"')
                         .replace(/\\\\/g, '\\');
-                    
+
                     return { subject, body };
                 }
             }
@@ -559,12 +559,12 @@ Return ONLY the JSON object.`;
     } catch (e) {
         console.error('JSON parsing error:', e);
         console.log('Raw response:', response);
-        
+
         // Final fallback: extract any text that looks like subject/body
         const lines = response.split('\n');
         let subject = `Application for ${jobInfoData.jobTitle} Position`;
         let body = response;
-        
+
         // Try to find subject line
         for (const line of lines) {
             if (line.toLowerCase().includes('subject') && line.includes(':')) {
@@ -572,7 +572,7 @@ Return ONLY the JSON object.`;
                 break;
             }
         }
-        
+
         return { subject, body };
     }
 }
@@ -656,13 +656,13 @@ function displayJobInfo(jobInfoData) {
         </div>
     `;
     jobInfoSection.classList.remove('hidden');
-    
+
     // Auto-fill recruiter email if found
     if (jobInfoData.recruiterEmail && jobInfoData.recruiterEmail !== "Not specified") {
         toEmail.value = jobInfoData.recruiterEmail;
         showToast('Recruiter email auto-filled!', 'success');
     }
-    
+
     // Show portfolio extracted notification
     if (jobInfoData.portfolioUrl && jobInfoData.portfolioUrl !== "Not specified") {
         showToast('Portfolio URL extracted from CV!', 'success');
@@ -672,14 +672,14 @@ function displayJobInfo(jobInfoData) {
 // Display Email
 function displayEmail(emailData) {
     emailSubject.textContent = emailData.subject;
-    emailBody.textContent = emailData.body;
-    
+    emailBody.textContent = emailData.body + "\n\n";
+
     // Load last recipient email if exists
     const lastRecipient = localStorage.getItem('lastRecipientEmail');
     if (lastRecipient && !toEmail.value) {
         toEmail.value = lastRecipient;
     }
-    
+
     hideLoading();
     placeholder.classList.add('hidden');
     emailSection.classList.remove('hidden');
@@ -690,7 +690,7 @@ copyBtn.addEventListener('click', () => {
     const subject = emailSubject.textContent;
     const body = emailBody.textContent;
     const fullEmail = `Subject: ${subject}\n\n${body}`;
-    
+
     navigator.clipboard.writeText(fullEmail).then(() => {
         showToast('Email copied to clipboard!', 'success');
     }).catch(() => {
@@ -703,18 +703,18 @@ openMailtoBtn.addEventListener('click', () => {
     const to = toEmail.value.trim();
     const subject = emailSubject.textContent;
     const body = emailBody.textContent;
-    
+
     if (!to) {
         showToast('Please enter recipient email address', 'error');
         return;
     }
-    
+
     // Save recipient email to localStorage for convenience
     localStorage.setItem('lastRecipientEmail', to);
-    
+
     // Create mailto link
     const mailtoLink = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
+
     // Open email client in new tab/window
     window.open(mailtoLink, '_blank');
     showToast('Opening your email client in new tab...', 'success');
@@ -755,11 +755,10 @@ function hideLoading() {
 // Show Toast Notification
 function showToast(message, type = 'info') {
     toastMessage.textContent = message;
-    toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transition-opacity ${
-        type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-gray-800'
-    } text-white`;
+    toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transition-opacity ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-gray-800'
+        } text-white`;
     toast.classList.remove('hidden');
-    
+
     setTimeout(() => {
         toast.classList.add('hidden');
     }, 3000);
@@ -772,7 +771,7 @@ async function loadPDFJSLibrary() {
             resolve();
             return;
         }
-        
+
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
         script.onload = () => {
@@ -792,20 +791,20 @@ async function extractTextFromPDF(arrayBuffer) {
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdf.numPages;
         let fullText = '';
-        
+
         // Extract text from each page
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
             const textContent = await page.getTextContent();
-            
+
             // Combine text items with proper spacing
             const pageText = textContent.items
                 .map(item => item.str)
                 .join(' ');
-            
+
             fullText += pageText + '\n\n';
         }
-        
+
         return fullText.trim();
     } catch (error) {
         console.error('Error extracting text from PDF:', error);
