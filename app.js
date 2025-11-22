@@ -70,7 +70,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Register service worker and listen for Web Share Target messages
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('service-worker.js')
         .then(reg => console.log('Service Worker registered:', reg))
         .catch(err => console.warn('Service Worker registration failed:', err));
 

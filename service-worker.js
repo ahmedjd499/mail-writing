@@ -2,8 +2,7 @@ const CACHE_NAME = 'job-email-generator-v2';
 const urlsToCache = [
   './',
   './index.html',
-  './app.js',
-  './manifest.json'
+  './app.js'
 ];
 
 // Install service worker
@@ -23,7 +22,8 @@ self.addEventListener('fetch', event => {
   const reqUrl = new URL(event.request.url);
 
   // Handle Web Share Target POST from Android (PWA share)
-  if (event.request.method === 'POST' && reqUrl.pathname === '/share-target') {
+  // Use endsWith so this works when the site is hosted under a repo subpath (GitHub Pages)
+  if (event.request.method === 'POST' && reqUrl.pathname.endsWith('/share-target')) {
     event.respondWith((async () => {
       try {
         const formData = await event.request.formData();
@@ -36,7 +36,8 @@ self.addEventListener('fetch', event => {
         const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
         let client = windowClients[0];
         if (!client) {
-          client = await clients.openWindow('/?source=share');
+          // Open a window within the service worker scope (works on project pages)
+          client = await clients.openWindow(self.registration.scope + '?source=share');
         }
 
         // Post the shared data to the client. File objects are structured-cloneable.
@@ -47,8 +48,8 @@ self.addEventListener('fetch', event => {
         console.error('Error handling /share-target POST:', err);
       }
 
-      // Redirect to homepage after handling share
-      return Response.redirect('/', 303);
+      // Redirect to the scope root (homepage) after handling share
+      return Response.redirect(self.registration.scope, 303);
     })());
 
     return; // we've handled this request
