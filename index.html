@@ -1,38 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI-powered job application email generator using Groq API. Generate professional emails instantly.">
+    <meta name="description"
+        content="AI-powered job application email generator using Groq API. Generate professional emails instantly.">
     <meta name="theme-color" content="#4F46E5">
     <title>Job Application Email Generator</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="favicon_io/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon_io/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon_io/favicon-16x16.png">
-    
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-    
+
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" href="favicon_io/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Email Gen">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Mobile-friendly improvements */
         @media (max-width: 768px) {
-            .container { padding-left: 1rem; padding-right: 1rem; }
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
         }
-        textarea { font-size: 16px !important; } /* Prevent zoom on iOS */
-        input { font-size: 16px !important; } /* Prevent zoom on iOS */
-        select { font-size: 16px !important; } /* Prevent zoom on iOS */
+
+        textarea {
+            font-size: 16px !important;
+        }
+
+        /* Prevent zoom on iOS */
+        input {
+            font-size: 16px !important;
+        }
+
+        /* Prevent zoom on iOS */
+        select {
+            font-size: 16px !important;
+        }
+
+        /* Prevent zoom on iOS */
     </style>
 </head>
+
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
     <div class="container mx-auto px-4 py-4 md:py-8 max-w-6xl">
         <!-- Header -->
@@ -40,19 +59,23 @@
             <h1 class="text-2xl md:text-4xl font-bold text-indigo-900 mb-2">
                 <i class="fas fa-briefcase mr-2 md:mr-3"></i>Job Application Email Generator
             </h1>
-            <p class="text-sm md:text-base text-gray-600">Powered by Groq AI - Generate professional job application emails instantly</p>
-            
+            <p class="text-sm md:text-base text-gray-600">Powered by Groq AI - Generate professional job application
+                emails instantly</p>
+
             <!-- Settings Button -->
-            <button id="openSettingsBtn" class="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2">
+            <button id="openSettingsBtn"
+                class="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2">
                 <i class="fas fa-cog"></i>
                 API Settings
             </button>
         </div>
 
         <!-- Settings Modal -->
-        <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div id="settingsModal"
+            class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div class="sticky top-0 bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between">
+                <div
+                    class="sticky top-0 bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between">
                     <h2 class="text-lg md:text-xl font-semibold text-gray-800">
                         <i class="fas fa-cog mr-2"></i>API Configuration
                     </h2>
@@ -60,42 +83,46 @@
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
-                
+
                 <div class="p-4 md:p-6 space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         <div>
                             <label for="apiKey" class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                                 Groq API Key <span class="text-red-500">*</span>
                             </label>
-                            <input 
-                                type="password" 
-                                id="apiKey" 
-                                placeholder="Enter your Groq API key"
-                                class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            >
-                            <p class="text-xs text-gray-500 mt-1">
-                                Get your API key from <a href="https://console.groq.com/keys" target="_blank" class="text-indigo-600 hover:underline">Groq Console</a>
-                            </p>
+                            <input type="password" id="apiKey" placeholder="Enter your Groq API key"
+                                class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <div class="mt-2">
+                                <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer"
+                                    id="getApiKeyBtn"
+                                    class="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md text-sm md:text-base font-medium shadow-sm">
+                                    <i class="fas fa-key mr-2"></i>
+                                    Get an API key
+                                </a>
+                                <p class="text-xs text-gray-500 mt-2">Click to open the Groq Console and create or view
+                                    your API keys.</p>
+                            </div>
                         </div>
                         <div>
                             <label for="model" class="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                                 AI Model
                             </label>
-                            <select 
-                                id="model"
-                                class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                            >
+                            <select id="model"
+                                class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                                 <optgroup label="🔥 Recommended for Text">
                                     <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Best)</option>
                                     <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Fastest)</option>
                                     <option value="groq/compound">Groq Compound (Advanced)</option>
                                 </optgroup>
                                 <optgroup label="👁️ Vision Models (For Screenshots)">
-                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout 17B (Vision + OCR)</option>
-                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B (Vision)</option>
+                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout 17B (Vision
+                                        + OCR)</option>
+                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B
+                                        (Vision)</option>
                                 </optgroup>
                                 <optgroup label="🦙 Meta Llama Models">
-                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B</option>
+                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B
+                                    </option>
                                     <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout 17B</option>
                                 </optgroup>
                                 <optgroup label="🤖 OpenAI OSS">
@@ -114,9 +141,10 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="flex justify-end pt-2">
-                        <button id="saveSettingsBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
+                        <button id="saveSettingsBtn"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
                             <i class="fas fa-save mr-2"></i>Save & Close
                         </button>
                     </div>
@@ -131,7 +159,7 @@
                 <h2 class="text-lg md:text-xl font-semibold text-gray-800 mb-3 md:mb-4">
                     <i class="fas fa-clipboard mr-2"></i>Job Post Information
                 </h2>
-                
+
                 <!-- Screenshot Upload -->
                 <div class="mb-3 md:mb-4">
                     <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
@@ -143,31 +171,35 @@
                             <strong>Tip:</strong> Use Vision Models for automatic text extraction
                         </p>
                     </div>
-                    
+
                     <!-- Mobile: Multiple upload options -->
                     <div class="grid grid-cols-2 gap-2 mb-2 md:hidden">
-                        <button type="button" id="takePhotoBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1">
+                        <button type="button" id="takePhotoBtn"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1">
                             <i class="fas fa-camera"></i>
                             Camera
                         </button>
-                        <button type="button" id="chooseFileBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1">
+                        <button type="button" id="chooseFileBtn"
+                            class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1">
                             <i class="fas fa-images"></i>
                             Gallery
                         </button>
                     </div>
-                    
+
                     <!-- Desktop: Drag & Drop Zone -->
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 text-center hover:border-indigo-500 transition-colors cursor-pointer hidden md:block" id="dropZone">
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 text-center hover:border-indigo-500 transition-colors cursor-pointer hidden md:block"
+                        id="dropZone">
                         <input type="file" id="screenshotInput" accept="image/*" class="hidden">
                         <i class="fas fa-cloud-upload-alt text-2xl md:text-3xl text-gray-400 mb-2"></i>
-                        <p class="text-xs md:text-sm text-gray-600">Click to upload, drag & drop, or <strong>Ctrl+V to paste</strong></p>
+                        <p class="text-xs md:text-sm text-gray-600">Click to upload, drag & drop, or <strong>Ctrl+V to
+                                paste</strong></p>
                         <p class="text-xs text-gray-400 mt-1">PNG, JPG, or GIF (Max 10MB)</p>
                     </div>
-                    
+
                     <!-- Hidden file inputs for mobile -->
                     <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
                     <input type="file" id="galleryInput" accept="image/*" class="hidden">
-                    
+
                     <div id="imagePreview" class="hidden mt-3">
                         <img id="previewImg" class="max-h-40 md:max-h-48 rounded-lg mx-auto border border-gray-200">
                         <button id="removeImage" class="mt-2 text-xs md:text-sm text-red-600 hover:text-red-800">
@@ -180,12 +212,9 @@
                     <label for="jobPost" class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         Or Paste Job Post (Text)
                     </label>
-                    <textarea 
-                        id="jobPost" 
-                        rows="6"
+                    <textarea id="jobPost" rows="6"
                         placeholder="Paste the job description from LinkedIn or any other source..."
-                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                    ></textarea>
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"></textarea>
                 </div>
 
                 <!-- CV Upload -->
@@ -193,7 +222,8 @@
                     <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-file-pdf mr-1"></i>Upload Your CV/Resume <span class="text-red-500">*</span>
                     </label>
-                    <input type="file" id="cvInput" accept=".pdf,.doc,.docx,.txt" class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                    <input type="file" id="cvInput" accept=".pdf,.doc,.docx,.txt"
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
                     <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX, or TXT (TXT recommended)</p>
                     <div id="cvStatus" class="hidden mt-2 text-xs md:text-sm text-green-600">
                         <i class="fas fa-check-circle mr-1"></i><span id="cvFileName"></span>
@@ -204,18 +234,13 @@
                     <label for="additionalInfo" class="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                         Additional Information (Optional)
                     </label>
-                    <textarea 
-                        id="additionalInfo" 
-                        rows="3"
+                    <textarea id="additionalInfo" rows="3"
                         placeholder="Add any specific requirements, your experience highlights, or preferences..."
-                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                    ></textarea>
+                        class="w-full px-3 md:px-4 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"></textarea>
                 </div>
 
-                <button 
-                    id="generateBtn"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 md:px-6 rounded-lg transition duration-200 flex items-center justify-center text-sm md:text-base"
-                >
+                <button id="generateBtn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 md:px-6 rounded-lg transition duration-200 flex items-center justify-center text-sm md:text-base">
                     <i class="fas fa-magic mr-2"></i>Generate Application Email
                 </button>
             </div>
@@ -244,42 +269,40 @@
                         <div class="space-y-2 md:space-y-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">To Email</label>
-                                <input type="email" id="toEmail" placeholder="recruiter@company.com" 
+                                <input type="email" id="toEmail" placeholder="recruiter@company.com"
                                     class="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
-                            <button 
-                                id="openMailtoBtn"
-                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm"
-                            >
+                            <button id="openMailtoBtn"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm">
                                 <i class="fas fa-envelope mr-2"></i>Open in Email Client
                             </button>
                             <p class="text-xs text-gray-600">
-                                <i class="fas fa-info-circle mr-1"></i>Opens your default email client with the email ready to send.
+                                <i class="fas fa-info-circle mr-1"></i>Opens your default email client with the email
+                                ready to send.
                             </p>
                         </div>
                     </div>
 
                     <div class="mb-3 md:mb-4">
                         <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">Subject Line</label>
-                        <div id="emailSubject" class="bg-gray-50 p-2 md:p-3 rounded-lg border border-gray-200 text-xs md:text-sm"></div>
+                        <div id="emailSubject"
+                            class="bg-gray-50 p-2 md:p-3 rounded-lg border border-gray-200 text-xs md:text-sm"></div>
                     </div>
-                    
+
                     <div class="mb-3 md:mb-4">
                         <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">Email Body</label>
-                        <div id="emailBody" class="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200 whitespace-pre-wrap max-h-64 md:max-h-96 overflow-y-auto text-xs md:text-sm"></div>
+                        <div id="emailBody"
+                            class="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200 whitespace-pre-wrap max-h-64 md:max-h-96 overflow-y-auto text-xs md:text-sm">
+                        </div>
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-2 md:gap-3">
-                        <button 
-                            id="copyBtn"
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm"
-                        >
+                        <button id="copyBtn"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm">
                             <i class="fas fa-copy mr-2"></i>Copy Email
                         </button>
-                        <button 
-                            id="clearBtn"
-                            class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm"
-                        >
+                        <button id="clearBtn"
+                            class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center text-xs md:text-sm">
                             <i class="fas fa-trash mr-2"></i>Clear
                         </button>
                     </div>
@@ -287,7 +310,9 @@
 
                 <!-- Loading State -->
                 <div id="loadingState" class="hidden text-center py-8 md:py-12">
-                    <div class="inline-block animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 border-indigo-600 mb-3 md:mb-4"></div>
+                    <div
+                        class="inline-block animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-b-2 border-indigo-600 mb-3 md:mb-4">
+                    </div>
                     <p class="text-sm md:text-base text-gray-600">Generating your professional email...</p>
                 </div>
 
@@ -300,25 +325,30 @@
         </div>
 
         <!-- Toast Notification -->
-        <div id="toast" class="hidden fixed bottom-4 right-4 left-4 sm:left-auto bg-gray-800 text-white px-4 md:px-6 py-3 rounded-lg shadow-lg transition-opacity text-xs md:text-sm">
+        <div id="toast"
+            class="hidden fixed bottom-4 right-4 left-4 sm:left-auto bg-gray-800 text-white px-4 md:px-6 py-3 rounded-lg shadow-lg transition-opacity text-xs md:text-sm">
             <span id="toastMessage"></span>
         </div>
     </div>
 
     <!-- Install Prompt -->
-    <div id="installPrompt" class="hidden fixed bottom-4 left-4 right-4 bg-white rounded-lg shadow-2xl p-4 border-2 border-indigo-500 z-50 max-w-md mx-auto">
+    <div id="installPrompt"
+        class="hidden fixed bottom-4 left-4 right-4 bg-white rounded-lg shadow-2xl p-4 border-2 border-indigo-500 z-50 max-w-md mx-auto">
         <div class="flex items-start gap-3">
             <div class="bg-indigo-100 p-2 rounded-lg">
                 <i class="fas fa-download text-indigo-600 text-xl"></i>
             </div>
             <div class="flex-1">
                 <h3 class="font-bold text-gray-900 mb-1">Install App</h3>
-                <p class="text-sm text-gray-600 mb-3">Install this app on your device for quick access and offline use!</p>
+                <p class="text-sm text-gray-600 mb-3">Install this app on your device for quick access and offline use!
+                </p>
                 <div class="flex gap-2">
-                    <button id="installBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                    <button id="installBtn"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
                         <i class="fas fa-plus mr-1"></i>Install
                     </button>
-                    <button id="dismissInstallBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+                    <button id="dismissInstallBtn"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
                         Later
                     </button>
                 </div>
@@ -327,7 +357,7 @@
     </div>
 
     <script src="app.js"></script>
-    
+
     <script>
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
@@ -347,7 +377,7 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
+
             // Show install prompt after 2 seconds
             setTimeout(() => {
                 installPrompt.classList.remove('hidden');
@@ -356,11 +386,11 @@
 
         installBtn.addEventListener('click', async () => {
             if (!deferredPrompt) return;
-            
+
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             console.log(`User response: ${outcome}`);
-            
+
             deferredPrompt = null;
             installPrompt.classList.add('hidden');
         });
@@ -376,4 +406,5 @@
         });
     </script>
 </body>
+
 </html>
