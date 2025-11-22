@@ -12,7 +12,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache.map(url => new Request(url, {cache: 'reload'})));
+        return cache.addAll(urlsToCache.map(url => new Request(url, { cache: 'reload' })));
       })
       .catch(err => console.log('Cache install failed:', err))
   );
@@ -20,25 +20,57 @@ self.addEventListener('install', event => {
 
 // Fetch from network first, fallback to cache
 self.addEventListener('fetch', event => {
+  const reqUrl = new URL(event.request.url);
+
+  // Handle Web Share Target POST from Android (PWA share)
+  if (event.request.method === 'POST' && reqUrl.pathname === '/share-target') {
+    event.respondWith((async () => {
+      try {
+        const formData = await event.request.formData();
+        const title = formData.get('title');
+        const text = formData.get('text');
+        // `files` param may include one or more files
+        const files = formData.getAll('files');
+
+        // Find an existing client window, or open a new one
+        const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        let client = windowClients[0];
+        if (!client) {
+          client = await clients.openWindow('/?source=share');
+        }
+
+        // Post the shared data to the client. File objects are structured-cloneable.
+        if (client) {
+          client.postMessage({ type: 'share-target', title, text, files });
+        }
+      } catch (err) {
+        console.error('Error handling /share-target POST:', err);
+      }
+
+      // Redirect to homepage after handling share
+      return Response.redirect('/', 303);
+    })());
+
+    return; // we've handled this request
+  }
+
+  // Default network-first strategy for other requests
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Check if valid response
         if (!response || response.status !== 200) {
           return response;
         }
-        
-        // Clone and cache the response
+
         const responseToCache = response.clone();
-        
+
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, responseToCache);
         });
-        
+
         return response;
       })
       .catch(() => {
-        // Network failed, try cache
         return caches.match(event.request);
       })
   );

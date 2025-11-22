@@ -68,6 +68,32 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Register service worker and listen for Web Share Target messages
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('Service Worker registered:', reg))
+        .catch(err => console.warn('Service Worker registration failed:', err));
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        const data = event.data;
+        if (!data || data.type !== 'share-target') return;
+
+        // If the share included text, populate the job post input
+        if (data.text && jobPostInput) {
+            jobPostInput.value = data.text;
+            showToast('Shared text received', 'info');
+        }
+
+        // If the share included files, handle the first image file
+        if (data.files && data.files.length && typeof handleScreenshotUpload === 'function') {
+            const file = data.files[0];
+            // `file` should be a File/Blob object; pass it to existing handler
+            handleScreenshotUpload(file);
+            showToast('Shared image received', 'success');
+        }
+    });
+}
+
 // Save model selection
 modelSelect.addEventListener('change', () => {
     localStorage.setItem('selectedModel', modelSelect.value);
