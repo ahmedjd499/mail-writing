@@ -84,12 +84,19 @@ if ('serviceWorker' in navigator) {
             showToast('Shared text received', 'info');
         }
 
-        // If the share included files, handle the first image file
-        if (data.files && data.files.length && typeof handleScreenshotUpload === 'function') {
-            const file = data.files[0];
-            // `file` should be a File/Blob object; pass it to existing handler
-            handleScreenshotUpload(file);
+        const firstFile = data.files && data.files.length ? data.files[0] : null;
+        const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
+
+        // Prefer handling actual File/Blob objects when available
+        if (firstFile && isBlobLike(firstFile) && typeof handleScreenshotUpload === 'function') {
+            handleScreenshotUpload(firstFile);
             showToast('Shared image received', 'success');
+            return;
+        }
+
+        // Fallback to serialized data URLs from the service worker
+        if (firstSerialized && firstSerialized.dataUrl) {
+            handleSharedImageData(firstSerialized);
         }
     });
 }
@@ -225,6 +232,10 @@ function isMobileDevice() {
         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 }
 
+function isBlobLike(value) {
+    return value && typeof value === 'object' && typeof value.arrayBuffer === 'function';
+}
+
 async function handleScreenshotUpload(file) {
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -254,6 +265,27 @@ async function handleScreenshotUpload(file) {
         console.error('Error uploading screenshot:', error);
         showToast('Failed to upload screenshot', 'error');
     }
+}
+
+function handleSharedImageData(sharedFile) {
+    const { dataUrl, name } = sharedFile;
+    if (!dataUrl) {
+        showToast('Shared image data missing', 'error');
+        return;
+    }
+
+    uploadedScreenshot = dataUrl;
+    if (previewImg) {
+        previewImg.src = dataUrl;
+    }
+    if (imagePreview) {
+        imagePreview.classList.remove('hidden');
+    }
+    if (dropZone) {
+        dropZone.classList.add('hidden');
+    }
+
+    showToast(`Shared image received${name ? ` (${name})` : ''}`, 'success');
 }
 
 // CV Upload Handling

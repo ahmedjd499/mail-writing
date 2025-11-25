@@ -1,9 +1,25 @@
-const CACHE_NAME = 'job-email-generator-v2';
+const CACHE_NAME = 'job-email-generator-v3';
 const urlsToCache = [
   './',
   './index.html',
   './app.js'
 ];
+
+async function blobToDataUrl(blob) {
+  const arrayBuffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+
+  const base64 = btoa(binary);
+  const mimeType = blob.type || 'application/octet-stream';
+  return `data:${mimeType};base64,${base64}`;
+}
 
 // Install service worker
 self.addEventListener('install', event => {
@@ -31,6 +47,18 @@ self.addEventListener('fetch', event => {
         const text = formData.get('text');
         // `files` param may include one or more files
         const files = formData.getAll('files');
+        let serializedFiles = [];
+
+        if (files && files.length) {
+          serializedFiles = await Promise.all(
+            files.map(async (file, index) => ({
+              name: file.name || `shared-file-${index + 1}`,
+              type: file.type || 'application/octet-stream',
+              size: file.size || 0,
+              dataUrl: await blobToDataUrl(file)
+            }))
+          );
+        }
 
         // Find an existing client window, or open a new one
         const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -42,7 +70,7 @@ self.addEventListener('fetch', event => {
 
         // Post the shared data to the client. File objects are structured-cloneable.
         if (client) {
-          client.postMessage({ type: 'share-target', title, text, files });
+          client.postMessage({ type: 'share-target', title, text, files, serializedFiles });
         }
       } catch (err) {
         console.error('Error handling /share-target POST:', err);
