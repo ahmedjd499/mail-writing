@@ -74,6 +74,10 @@ if ('serviceWorker' in navigator) {
         .then(reg => console.log('Service Worker registered:', reg))
         .catch(err => console.warn('Service Worker registration failed:', err));
 
+    if (typeof navigator.serviceWorker.startMessages === 'function') {
+        navigator.serviceWorker.startMessages();
+    }
+
     navigator.serviceWorker.addEventListener('message', (event) => {
         const data = event.data;
         if (!data || data.type !== 'share-target') return;
@@ -97,6 +101,35 @@ if ('serviceWorker' in navigator) {
         // Fallback to serialized data URLs from the service worker
         if (firstSerialized && firstSerialized.dataUrl) {
             handleSharedImageData(firstSerialized);
+        }
+    });
+}
+
+// Handle LaunchQueue shares when app is opened from Android share sheet
+if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
+    window.launchQueue.setConsumer(async (launchParams) => {
+        if (!launchParams) return;
+
+        const { files = [], title, text } = launchParams;
+
+        if (text && jobPostInput) {
+            jobPostInput.value = text;
+            showToast('Shared text received', 'info');
+        }
+
+        if (files.length && typeof handleScreenshotUpload === 'function') {
+            for (const fileHandle of files) {
+                try {
+                    const file = await fileHandle.getFile();
+                    if (file && file.type && file.type.startsWith('image/')) {
+                        await handleScreenshotUpload(file);
+                        showToast('Shared image received', 'success');
+                        break;
+                    }
+                } catch (error) {
+                    console.error('Failed to read shared file from launchQueue:', error);
+                }
+            }
         }
     });
 }
