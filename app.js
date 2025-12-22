@@ -82,25 +82,29 @@ if ('serviceWorker' in navigator) {
         const data = event.data;
         if (!data || data.type !== 'share-target') return;
 
+        console.log('Received share-target message:', data);
+
         // If the share included text, populate the job post input
         if (data.text && jobPostInput) {
             jobPostInput.value = data.text;
             showToast('Shared text received', 'info');
         }
 
-        const firstFile = data.files && data.files.length ? data.files[0] : null;
+        // Check for serialized files first (more reliable from service worker)
         const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
-
-        // Prefer handling actual File/Blob objects when available
-        if (firstFile && isBlobLike(firstFile) && typeof handleScreenshotUpload === 'function') {
-            handleScreenshotUpload(firstFile);
-            showToast('Shared image received', 'success');
+        
+        if (firstSerialized && firstSerialized.dataUrl) {
+            console.log('Processing serialized file:', firstSerialized.name);
+            handleSharedImageData(firstSerialized);
             return;
         }
 
-        // Fallback to serialized data URLs from the service worker
-        if (firstSerialized && firstSerialized.dataUrl) {
-            handleSharedImageData(firstSerialized);
+        // Fallback to regular File objects
+        const firstFile = data.files && data.files.length ? data.files[0] : null;
+        if (firstFile && isBlobLike(firstFile)) {
+            console.log('Processing File object');
+            handleScreenshotUpload(firstFile);
+            showToast('Shared image received', 'success');
         }
     });
 }
@@ -307,18 +311,31 @@ function handleSharedImageData(sharedFile) {
         return;
     }
 
+    console.log('Setting shared image, size:', dataUrl.length);
+    
+    // Set the uploaded screenshot state
     uploadedScreenshot = dataUrl;
+    
+    // Update preview image
     if (previewImg) {
         previewImg.src = dataUrl;
+        previewImg.onload = () => {
+            console.log('Shared image loaded successfully');
+            showToast(`Shared image received${name ? ` (${name})` : ''}`, 'success');
+        };
+        previewImg.onerror = () => {
+            console.error('Failed to load shared image');
+            showToast('Failed to display shared image', 'error');
+        };
     }
+    
+    // Show image preview, hide drop zone
     if (imagePreview) {
         imagePreview.classList.remove('hidden');
     }
     if (dropZone) {
         dropZone.classList.add('hidden');
     }
-
-    showToast(`Shared image received${name ? ` (${name})` : ''}`, 'success');
 }
 
 // CV Upload Handling
