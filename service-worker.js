@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-email-generator-v3';
+const CACHE_NAME = 'job-email-generator-v4';
 const urlsToCache = [
   './',
   './index.html',
@@ -49,34 +49,61 @@ self.addEventListener('fetch', event => {
         const files = formData.getAll('files');
         let serializedFiles = [];
 
+        console.log('[SW] Share received - files count:', files?.length);
+
         if (files && files.length) {
+          console.log('[SW] Converting files to data URLs...');
           serializedFiles = await Promise.all(
-            files.map(async (file, index) => ({
-              name: file.name || `shared-file-${index + 1}`,
-              type: file.type || 'application/octet-stream',
-              size: file.size || 0,
-              dataUrl: await blobToDataUrl(file)
-            }))
+            files.map(async (file, index) => {
+              const dataUrl = await blobToDataUrl(file);
+              console.log(`[SW] File ${index}: ${file.name}, type: ${file.type}, size: ${file.size}, dataUrl length: ${dataUrl?.length}`);
+              return {
+                name: file.name || `shared-file-${index + 1}`,
+                type: file.type || 'application/octet-stream',
+                size: file.size || 0,
+                dataUrl: dataUrl
+              };
+            })
           );
         }
 
         // Find an existing client window, or open a new one
         const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
         let client = windowClients[0];
-        if (!client) {
-          // Open a window within the service worker scope (works on project pages)
+        
+        console.log('[SW] Existing clients:', windowClients.length);
+        
+        if (client) {
+          // Focus existing client
+          if (client.focus) {
+            await client.focus();
+          }
+          console.log('[SW] Posting message to existing client');
+        } else {
+          // Open a new window
+          console.log('[SW] Opening new window');
           client = await clients.openWindow(self.registration.scope + '?source=share');
+          // Wait a bit for the new window to be ready
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        // Post the shared data to the client. File objects are structured-cloneable.
+        // Post the shared data to the client
         if (client) {
-          client.postMessage({ type: 'share-target', title, text, files, serializedFiles });
+          const message = { type: 'share-target', title, text, files: [], serializedFiles };
+          console.log('[SW] Posting message:', { ...message, serializedFiles: `${serializedFiles.length} files` });
+          client.postMessage(message);
+          
+          // Wait a bit before redirecting to ensure message is received
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } else {
+          console.error('[SW] No client available to post message');
         }
       } catch (err) {
-        console.error('Error handling /share-target POST:', err);
+        console.error('[SW] Error handling /share-target POST:', err);
       }
 
       // Redirect to the scope root (homepage) after handling share
+      console.log('[SW] Redirecting to app');
       return Response.redirect(self.registration.scope, 303);
     })());
 

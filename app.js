@@ -36,6 +36,9 @@ const cvInput = document.getElementById('cvInput');
 const cvStatus = document.getElementById('cvStatus');
 const cvFileName = document.getElementById('cvFileName');
 
+// Debug log array
+const debugLogs = [];
+
 // Email sending elements
 const openMailtoBtn = document.getElementById('openMailtoBtn');
 const toEmail = document.getElementById('toEmail');
@@ -46,8 +49,47 @@ let uploadedCV = null;
 let cvText = '';
 let cvFileData = null; // Store file data for attachment
 
+// Debug logging function
+function debugLog(message) {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = `[${timestamp}] ${message}`;
+    debugLogs.push(logEntry);
+    console.log(logEntry);
+    
+    // Keep only last 20 logs
+    if (debugLogs.length > 20) debugLogs.shift();
+    
+    // Show in toast for important events
+    if (message.includes('share-target') || message.includes('Shared')) {
+        showToast(message, 'info');
+    }
+}
+
+// Add debug panel toggle (triple-tap bottom-left corner)
+let tapCount = 0;
+let tapTimer = null;
+document.addEventListener('click', (e) => {
+    if (e.clientX < 50 && e.clientY > window.innerHeight - 50) {
+        tapCount++;
+        clearTimeout(tapTimer);
+        tapTimer = setTimeout(() => tapCount = 0, 1000);
+        
+        if (tapCount === 3) {
+            tapCount = 0;
+            showDebugPanel();
+        }
+    }
+});
+
+function showDebugPanel() {
+    const logs = debugLogs.length ? debugLogs.join('\n') : 'No debug logs yet';
+    alert('Debug Logs:\n\n' + logs);
+}
+
 // Load saved data from localStorage
 window.addEventListener('DOMContentLoaded', () => {
+    debugLog('App loaded (DOMContentLoaded)');
+    
     const savedApiKey = localStorage.getItem('groqApiKey');
     if (savedApiKey) {
         apiKeyInput.value = savedApiKey;
@@ -66,6 +108,12 @@ window.addEventListener('DOMContentLoaded', () => {
         cvFileName.textContent = savedCVName;
         cvStatus.classList.remove('hidden');
     }
+    
+    // Check for share source in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('source') === 'share') {
+        debugLog('App opened from share intent');
+    }
 });
 
 // Register service worker and listen for Web Share Target messages
@@ -79,22 +127,32 @@ if ('serviceWorker' in navigator) {
     }
 
     navigator.serviceWorker.addEventListener('message', (event) => {
+        debugLog('Service worker message received');
+        
         const data = event.data;
-        if (!data || data.type !== 'share-target') return;
+        if (!data) {
+            debugLog('No data in message');
+            return;
+        }
+        
+        if (data.type !== 'share-target') {
+            debugLog(`Message type: ${data.type} (not share-target)`);
+            return;
+        }
 
-        console.log('Received share-target message:', data);
+        debugLog(`Share-target message: text=${!!data.text}, files=${data.files?.length || 0}, serializedFiles=${data.serializedFiles?.length || 0}`);
 
         // If the share included text, populate the job post input
         if (data.text && jobPostInput) {
             jobPostInput.value = data.text;
-            showToast('Shared text received', 'info');
+            debugLog('Shared text populated');
         }
 
         // Check for serialized files first (more reliable from service worker)
         const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
         
         if (firstSerialized && firstSerialized.dataUrl) {
-            console.log('Processing serialized file:', firstSerialized.name);
+            debugLog(`Processing serialized file: ${firstSerialized.name}, size: ${firstSerialized.size}`);
             handleSharedImageData(firstSerialized);
             return;
         }
@@ -102,9 +160,10 @@ if ('serviceWorker' in navigator) {
         // Fallback to regular File objects
         const firstFile = data.files && data.files.length ? data.files[0] : null;
         if (firstFile && isBlobLike(firstFile)) {
-            console.log('Processing File object');
+            debugLog('Processing File object');
             handleScreenshotUpload(firstFile);
-            showToast('Shared image received', 'success');
+        } else {
+            debugLog('No valid files found in share data');
         }
     });
 }
@@ -307,11 +366,12 @@ async function handleScreenshotUpload(file) {
 function handleSharedImageData(sharedFile) {
     const { dataUrl, name } = sharedFile;
     if (!dataUrl) {
+        debugLog('ERROR: Shared image data missing');
         showToast('Shared image data missing', 'error');
         return;
     }
 
-    console.log('Setting shared image, size:', dataUrl.length);
+    debugLog(`Setting shared image, size: ${dataUrl.length}`);
     
     // Set the uploaded screenshot state
     uploadedScreenshot = dataUrl;
@@ -320,11 +380,11 @@ function handleSharedImageData(sharedFile) {
     if (previewImg) {
         previewImg.src = dataUrl;
         previewImg.onload = () => {
-            console.log('Shared image loaded successfully');
-            showToast(`Shared image received${name ? ` (${name})` : ''}`, 'success');
+            debugLog('Shared image loaded and displayed successfully');
+            showToast(`Shared image received${name ? ` (${name})` : ''}!`, 'success');
         };
         previewImg.onerror = () => {
-            console.error('Failed to load shared image');
+            debugLog('ERROR: Failed to load shared image');
             showToast('Failed to display shared image', 'error');
         };
     }
@@ -332,6 +392,7 @@ function handleSharedImageData(sharedFile) {
     // Show image preview, hide drop zone
     if (imagePreview) {
         imagePreview.classList.remove('hidden');
+        debugLog('Image preview shown');
     }
     if (dropZone) {
         dropZone.classList.add('hidden');
