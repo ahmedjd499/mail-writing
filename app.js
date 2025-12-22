@@ -142,28 +142,33 @@ if ('serviceWorker' in navigator) {
 
         debugLog(`Share-target message: text=${!!data.text}, files=${data.files?.length || 0}, serializedFiles=${data.serializedFiles?.length || 0}`);
 
-        // If the share included text, populate the job post input
-        if (data.text && jobPostInput) {
-            jobPostInput.value = data.text;
-            debugLog('Shared text populated');
-        }
-
-        // Check for serialized files first (more reliable from service worker)
+        // Check for files FIRST (images have priority over text)
         const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
+        const firstFile = data.files && data.files.length ? data.files[0] : null;
         
+        let imageHandled = false;
+        
+        // Try serialized files first (more reliable from service worker)
         if (firstSerialized && firstSerialized.dataUrl) {
             debugLog(`Processing serialized file: ${firstSerialized.name}, size: ${firstSerialized.size}`);
             handleSharedImageData(firstSerialized);
-            return;
+            imageHandled = true;
         }
-
         // Fallback to regular File objects
-        const firstFile = data.files && data.files.length ? data.files[0] : null;
-        if (firstFile && isBlobLike(firstFile)) {
+        else if (firstFile && isBlobLike(firstFile)) {
             debugLog('Processing File object');
             handleScreenshotUpload(firstFile);
-        } else {
-            debugLog('No valid files found in share data');
+            imageHandled = true;
+        }
+        
+        // Only populate text if NO image was shared
+        if (!imageHandled && data.text && jobPostInput) {
+            jobPostInput.value = data.text;
+            debugLog('Shared text populated (no image)');
+        }
+        
+        if (!imageHandled && !data.text) {
+            debugLog('No valid files or text found in share data');
         }
     });
 }

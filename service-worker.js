@@ -1,8 +1,6 @@
-const CACHE_NAME = 'job-email-generator-v4';
+const CACHE_NAME = 'job-email-generator-v5';
 const urlsToCache = [
-  './',
-  './index.html',
-  './app.js'
+
 ];
 
 async function blobToDataUrl(blob) {

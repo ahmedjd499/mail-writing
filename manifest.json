@@ -2,8 +2,8 @@
   "name": "Job Application Email Generator",
   "short_name": "Email Gen",
   "description": "AI-powered job application email generator using Groq API",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4F46E5",
@@ -40,7 +40,7 @@
   ],
   "screenshots": [],
   "share_target": {
-    "action": "./share-target",
+    "action": "share-target",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
