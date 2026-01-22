@@ -126,7 +126,7 @@ self.addEventListener('fetch', event => {
         }
 
         // Generate unique ID for this share
-        const shareId = 'share-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        const shareId = 'share-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
         const shareData = { type: 'share-target', title, text, url, files: [], serializedFiles, shareId };
         
         // Find an existing client window, or open a new one

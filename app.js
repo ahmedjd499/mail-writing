@@ -233,24 +233,28 @@ function handleShareData(data) {
     }
     
     // Populate text/URL if provided (can coexist with images)
+    let toastMessage = null;
+    
     if ((data.text || data.url) && jobPostInput) {
         const sharedContent = formatSharedContent(data.title, data.url, data.text);
         jobPostInput.value = sharedContent;
         debugLog('Shared text/URL populated');
         
-        if (!imageHandled) {
-            showToast('Shared content received!', 'success');
+        if (imageHandled) {
+            toastMessage = 'Shared image and text received!';
         } else {
-            showToast('Shared image and text received!', 'success');
+            toastMessage = 'Shared content received!';
         }
     } else if (imageHandled) {
-        // Only image, no text
-        showToast('Shared image received!', 'success');
+        toastMessage = 'Shared image received!';
     }
     
     if (!imageHandled && !data.text && !data.url) {
         debugLog('No valid files, text, or URL found in share data');
-        showToast('No content to share', 'warning');
+        toastMessage = 'No content to share';
+        showToast(toastMessage, 'warning');
+    } else if (toastMessage) {
+        showToast(toastMessage, 'success');
     }
 }
 
