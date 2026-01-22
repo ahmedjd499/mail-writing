@@ -201,18 +201,58 @@ self.addEventListener('fetch', event => {
 // Update service worker and clear old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('Service worker activated, old caches cleared');
+    Promise.all([
+      // Clear old caches
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Clean up old share data from IndexedDB (older than 1 hour)
+      cleanupOldShareData()
+    ]).then(() => {
+      console.log('Service worker activated, old caches and share data cleared');
       return self.clients.claim(); // Take control immediately
     })
   );
 });
+
+// Clean up old IndexedDB share entries
+async function cleanupOldShareData() {
+  try {
+    const db = await openShareDB();
+    const transaction = db.transaction(['shares'], 'readwrite');
+    const store = transaction.objectStore('shares');
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000);
+    
+    // Get all records
+    const getAllRequest = store.openCursor();
+    
+    return new Promise((resolve, reject) => {
+      getAllRequest.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          const data = cursor.value;
+          // Delete if older than 1 hour
+          if (data.timestamp && data.timestamp < oneHourAgo) {
+            console.log(`[SW] Deleting old share data: ${data.id}`);
+            cursor.delete();
+          }
+          cursor.continue();
+        } else {
+          resolve();
+        }
+      };
+      getAllRequest.onerror = () => reject(getAllRequest.error);
+    });
+  } catch (err) {
+    console.warn('[SW] Error cleaning up share data:', err);
+    // Don't fail activation on cleanup errors
+  }
+}
