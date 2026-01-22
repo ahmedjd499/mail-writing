@@ -3,6 +3,41 @@ const urlsToCache = [
 
 ];
 
+// IndexedDB helpers for storing share data
+function openShareDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('ShareTargetDB', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('shares')) {
+        db.createObjectStore('shares', { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+function storeShareData(db, shareData) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['shares'], 'readwrite');
+    const store = transaction.objectStore('shares');
+    
+    // Store with timestamp to clean up old data
+    const dataWithId = {
+      ...shareData,
+      id: 'pending',
+      timestamp: Date.now()
+    };
+    
+    const request = store.put(dataWithId);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
 async function blobToDataUrl(blob) {
   const arrayBuffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
@@ -66,6 +101,9 @@ self.addEventListener('fetch', event => {
           );
         }
 
+        // Store the shared data in a way that can be retrieved by the page
+        const shareData = { type: 'share-target', title, text, url, files: [], serializedFiles };
+        
         // Find an existing client window, or open a new one
         const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
         let client = windowClients[0];
@@ -78,24 +116,34 @@ self.addEventListener('fetch', event => {
             await client.focus();
           }
           console.log('[SW] Posting message to existing client');
-        } else {
-          // Open a new window
-          console.log('[SW] Opening new window');
-          client = await clients.openWindow(self.registration.scope + '?source=share');
-          // Wait a bit for the new window to be ready
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        // Post the shared data to the client
-        if (client) {
-          const message = { type: 'share-target', title, text, url, files: [], serializedFiles };
-          console.log('[SW] Posting message:', { ...message, serializedFiles: `${serializedFiles.length} files` });
-          client.postMessage(message);
-          
-          // Wait a bit before redirecting to ensure message is received
+          client.postMessage(shareData);
           await new Promise(resolve => setTimeout(resolve, 100));
         } else {
-          console.error('[SW] No client available to post message');
+          // Open a new window with share data stored in URL fragment
+          console.log('[SW] Opening new window');
+          
+          // Store share data in IndexedDB for new window to retrieve
+          const db = await openShareDB();
+          await storeShareData(db, shareData);
+          
+          client = await clients.openWindow(self.registration.scope + '?source=share&shareId=pending');
+          
+          // If client opened, try posting message with retries
+          if (client) {
+            console.log('[SW] New client opened, attempting message delivery with retries');
+            // Try multiple times with increasing delays to ensure message is received
+            for (let attempt = 0; attempt < 5; attempt++) {
+              await new Promise(resolve => setTimeout(resolve, 500 + attempt * 300));
+              try {
+                client.postMessage(shareData);
+                console.log(`[SW] Message posted (attempt ${attempt + 1})`);
+              } catch (err) {
+                console.error(`[SW] Failed to post message (attempt ${attempt + 1}):`, err);
+              }
+            }
+          } else {
+            console.error('[SW] Failed to open new window');
+          }
         }
       } catch (err) {
         console.error('[SW] Error handling /share-target POST:', err);
