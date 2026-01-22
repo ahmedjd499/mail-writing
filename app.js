@@ -86,6 +86,22 @@ function showDebugPanel() {
     alert('Debug Logs:\n\n' + logs);
 }
 
+// Format shared content (URL, title, text) into a single string
+function formatSharedContent(title, url, text) {
+    let sharedContent = '';
+    if (url) {
+        sharedContent += `URL: ${url}\n\n`;
+    }
+    if (text) {
+        sharedContent += text;
+    }
+    if (title && title !== text) {
+        sharedContent = `Title: ${title}\n\n${sharedContent}`;
+    }
+    return sharedContent.trim();
+}
+
+
 // Load saved data from localStorage
 window.addEventListener('DOMContentLoaded', () => {
     debugLog('App loaded (DOMContentLoaded)');
@@ -140,7 +156,7 @@ if ('serviceWorker' in navigator) {
             return;
         }
 
-        debugLog(`Share-target message: text=${!!data.text}, files=${data.files?.length || 0}, serializedFiles=${data.serializedFiles?.length || 0}`);
+        debugLog(`Share-target message: text=${!!data.text}, url=${!!data.url}, files=${data.files?.length || 0}, serializedFiles=${data.serializedFiles?.length || 0}`);
 
         // Check for files FIRST (images have priority over text)
         const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
@@ -162,13 +178,15 @@ if ('serviceWorker' in navigator) {
         }
         
         // Only populate text if NO image was shared
-        if (!imageHandled && data.text && jobPostInput) {
-            jobPostInput.value = data.text;
-            debugLog('Shared text populated (no image)');
+        if (!imageHandled && (data.text || data.url) && jobPostInput) {
+            const sharedContent = formatSharedContent(data.title, data.url, data.text);
+            jobPostInput.value = sharedContent;
+            debugLog('Shared text/URL populated (no image)');
+            showToast('Shared content received!', 'success');
         }
         
-        if (!imageHandled && !data.text) {
-            debugLog('No valid files or text found in share data');
+        if (!imageHandled && !data.text && !data.url) {
+            debugLog('No valid files, text, or URL found in share data');
         }
     });
 }
@@ -178,20 +196,23 @@ if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'functi
     window.launchQueue.setConsumer(async (launchParams) => {
         if (!launchParams) return;
 
-        const { files = [], title, text } = launchParams;
+        const { files = [], title, text, url } = launchParams;
 
-        if (text && jobPostInput) {
-            jobPostInput.value = text;
-            showToast('Shared text received', 'info');
+        // Handle text/URL (LinkedIn posts, etc.)
+        if ((text || url) && jobPostInput) {
+            const sharedContent = formatSharedContent(title, url, text);
+            jobPostInput.value = sharedContent;
+            showToast('Shared content received!', 'success');
         }
 
+        // Handle files (screenshots, etc.)
         if (files.length && typeof handleScreenshotUpload === 'function') {
             for (const fileHandle of files) {
                 try {
                     const file = await fileHandle.getFile();
                     if (file && file.type && file.type.startsWith('image/')) {
                         await handleScreenshotUpload(file);
-                        showToast('Shared image received', 'success');
+                        showToast('Shared image received!', 'success');
                         break;
                     }
                 } catch (error) {

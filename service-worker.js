@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-email-generator-v5';
+const CACHE_NAME = 'job-email-generator-v6';
 const urlsToCache = [
 
 ];
@@ -43,11 +43,12 @@ self.addEventListener('fetch', event => {
         const formData = await event.request.formData();
         const title = formData.get('title');
         const text = formData.get('text');
+        const url = formData.get('url');
         // `files` param may include one or more files
         const files = formData.getAll('files');
         let serializedFiles = [];
 
-        console.log('[SW] Share received - files count:', files?.length);
+        console.log('[SW] Share received - files count:', files?.length, 'url:', url);
 
         if (files && files.length) {
           console.log('[SW] Converting files to data URLs...');
@@ -87,7 +88,7 @@ self.addEventListener('fetch', event => {
 
         // Post the shared data to the client
         if (client) {
-          const message = { type: 'share-target', title, text, files: [], serializedFiles };
+          const message = { type: 'share-target', title, text, url, files: [], serializedFiles };
           console.log('[SW] Posting message:', { ...message, serializedFiles: `${serializedFiles.length} files` });
           client.postMessage(message);
           
