@@ -86,6 +86,22 @@ function showDebugPanel() {
     alert('Debug Logs:\n\n' + logs);
 }
 
+// Format shared content (URL, title, text) into a single string
+function formatSharedContent(title, url, text) {
+    let sharedContent = '';
+    if (url) {
+        sharedContent += `URL: ${url}\n\n`;
+    }
+    if (text) {
+        sharedContent += text;
+    }
+    if (title && title !== text) {
+        sharedContent = `Title: ${title}\n\n${sharedContent}`;
+    }
+    return sharedContent.trim();
+}
+
+
 // Load saved data from localStorage
 window.addEventListener('DOMContentLoaded', () => {
     debugLog('App loaded (DOMContentLoaded)');
@@ -163,21 +179,10 @@ if ('serviceWorker' in navigator) {
         
         // Only populate text if NO image was shared
         if (!imageHandled && (data.text || data.url) && jobPostInput) {
-            // Combine URL and text for LinkedIn posts
-            let sharedContent = '';
-            if (data.url) {
-                sharedContent += `URL: ${data.url}\n\n`;
-            }
-            if (data.text) {
-                sharedContent += data.text;
-            }
-            if (data.title && data.title !== data.text) {
-                sharedContent = `Title: ${data.title}\n\n${sharedContent}`;
-            }
-            
-            jobPostInput.value = sharedContent.trim();
+            const sharedContent = formatSharedContent(data.title, data.url, data.text);
+            jobPostInput.value = sharedContent;
             debugLog('Shared text/URL populated (no image)');
-            showToast('LinkedIn post content received!', 'success');
+            showToast('Shared content received!', 'success');
         }
         
         if (!imageHandled && !data.text && !data.url) {
@@ -195,17 +200,8 @@ if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'functi
 
         // Handle text/URL (LinkedIn posts, etc.)
         if ((text || url) && jobPostInput) {
-            let sharedContent = '';
-            if (url) {
-                sharedContent += `URL: ${url}\n\n`;
-            }
-            if (text) {
-                sharedContent += text;
-            }
-            if (title && title !== text) {
-                sharedContent = `Title: ${title}\n\n${sharedContent}`;
-            }
-            jobPostInput.value = sharedContent.trim();
+            const sharedContent = formatSharedContent(title, url, text);
+            jobPostInput.value = sharedContent;
             showToast('Shared content received!', 'success');
         }
 
