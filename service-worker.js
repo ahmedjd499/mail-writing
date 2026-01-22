@@ -25,14 +25,14 @@ function storeShareData(db, shareData) {
     const transaction = db.transaction(['shares'], 'readwrite');
     const store = transaction.objectStore('shares');
     
-    // Store with timestamp to clean up old data
-    const dataWithId = {
+    // shareData already has an id (shareId), timestamp for cleanup
+    const dataWithTimestamp = {
       ...shareData,
-      id: 'pending',
+      id: shareData.shareId || 'pending',
       timestamp: Date.now()
     };
     
-    const request = store.put(dataWithId);
+    const request = store.put(dataWithTimestamp);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
@@ -87,22 +87,47 @@ self.addEventListener('fetch', event => {
 
         if (files && files.length) {
           console.log('[SW] Converting files to data URLs...');
-          serializedFiles = await Promise.all(
-            files.map(async (file, index) => {
-              const dataUrl = await blobToDataUrl(file);
-              console.log(`[SW] File ${index}: ${file.name}, type: ${file.type}, size: ${file.size}, dataUrl length: ${dataUrl?.length}`);
-              return {
-                name: file.name || `shared-file-${index + 1}`,
-                type: file.type || 'application/octet-stream',
-                size: file.size || 0,
-                dataUrl: dataUrl
-              };
-            })
-          );
+          
+          // Filter out files that are too large (>10MB) to prevent memory issues
+          const validFiles = files.filter(file => {
+            if (file.size > 10 * 1024 * 1024) {
+              console.warn(`[SW] File ${file.name} is too large (${file.size} bytes), skipping`);
+              return false;
+            }
+            return true;
+          });
+          
+          if (validFiles.length > 0) {
+            try {
+              serializedFiles = await Promise.all(
+                validFiles.map(async (file, index) => {
+                  try {
+                    const dataUrl = await blobToDataUrl(file);
+                    console.log(`[SW] File ${index}: ${file.name}, type: ${file.type}, size: ${file.size}, dataUrl length: ${dataUrl?.length}`);
+                    return {
+                      name: file.name || `shared-file-${index + 1}`,
+                      type: file.type || 'application/octet-stream',
+                      size: file.size || 0,
+                      dataUrl: dataUrl
+                    };
+                  } catch (err) {
+                    console.error(`[SW] Failed to convert file ${index}:`, err);
+                    return null; // Return null for failed conversions
+                  }
+                })
+              );
+              // Filter out null results from failed conversions
+              serializedFiles = serializedFiles.filter(f => f !== null);
+            } catch (err) {
+              console.error('[SW] Error converting files:', err);
+              serializedFiles = []; // Fallback to empty array
+            }
+          }
         }
 
-        // Store the shared data in a way that can be retrieved by the page
-        const shareData = { type: 'share-target', title, text, url, files: [], serializedFiles };
+        // Generate unique ID for this share
+        const shareId = 'share-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        const shareData = { type: 'share-target', title, text, url, files: [], serializedFiles, shareId };
         
         // Find an existing client window, or open a new one
         const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -111,7 +136,7 @@ self.addEventListener('fetch', event => {
         console.log('[SW] Existing clients:', windowClients.length);
         
         if (client) {
-          // Focus existing client
+          // For existing clients, just post message (no IndexedDB needed)
           if (client.focus) {
             await client.focus();
           }
@@ -119,29 +144,23 @@ self.addEventListener('fetch', event => {
           client.postMessage(shareData);
           await new Promise(resolve => setTimeout(resolve, 100));
         } else {
-          // Open a new window with share data stored in URL fragment
+          // For new windows, store in IndexedDB as fallback
           console.log('[SW] Opening new window');
           
-          // Store share data in IndexedDB for new window to retrieve
-          const db = await openShareDB();
-          await storeShareData(db, shareData);
+          try {
+            const db = await openShareDB();
+            await storeShareData(db, shareData);
+            console.log(`[SW] Share data stored in IndexedDB with ID: ${shareId}`);
+          } catch (err) {
+            console.error('[SW] Failed to store share data in IndexedDB:', err);
+            // Continue anyway, message posting might still work
+          }
           
-          client = await clients.openWindow(self.registration.scope + '?source=share&shareId=pending');
+          client = await clients.openWindow(self.registration.scope + '?source=share&shareId=' + shareId);
           
-          // If client opened, try posting message with retries
-          if (client) {
-            console.log('[SW] New client opened, attempting message delivery with retries');
-            // Try multiple times with increasing delays to ensure message is received
-            for (let attempt = 0; attempt < 5; attempt++) {
-              await new Promise(resolve => setTimeout(resolve, 500 + attempt * 300));
-              try {
-                client.postMessage(shareData);
-                console.log(`[SW] Message posted (attempt ${attempt + 1})`);
-              } catch (err) {
-                console.error(`[SW] Failed to post message (attempt ${attempt + 1}):`, err);
-              }
-            }
-          } else {
+          // Note: We stored in IndexedDB, so the new window will check there on load
+          // Message posting here is unreliable for new windows, so we don't retry
+          if (!client) {
             console.error('[SW] Failed to open new window');
           }
         }

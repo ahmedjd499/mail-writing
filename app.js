@@ -128,31 +128,39 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Check for share source in URL
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('source') === 'share') {
-        debugLog('App opened from share intent, checking for pending data');
+        const shareId = urlParams.get('shareId');
+        debugLog(`App opened from share intent, shareId: ${shareId || 'none'}`);
         
         // Check IndexedDB for pending share data
-        await checkPendingShareData();
+        await checkPendingShareData(shareId);
     }
 });
 
 // Check IndexedDB for share data that was stored by service worker
-async function checkPendingShareData() {
+async function checkPendingShareData(shareId) {
+    if (!shareId) {
+        debugLog('No shareId provided, skipping IndexedDB check');
+        return;
+    }
+    
     try {
         const db = await openShareDB();
-        const shareData = await getShareData(db, 'pending');
+        const shareData = await getShareData(db, shareId);
         
         if (shareData) {
-            debugLog('Found pending share data in IndexedDB');
+            debugLog(`Found pending share data in IndexedDB with ID: ${shareId}`);
             handleShareData(shareData);
             
             // Clean up the data after using it
-            await deleteShareData(db, 'pending');
+            await deleteShareData(db, shareId);
+            debugLog(`Cleaned up share data with ID: ${shareId}`);
         } else {
-            debugLog('No pending share data found in IndexedDB');
+            debugLog(`No pending share data found in IndexedDB with ID: ${shareId}`);
         }
     } catch (error) {
         console.error('Error checking pending share data:', error);
         debugLog('Error checking IndexedDB: ' + error.message);
+        showToast('Error loading shared content', 'error');
     }
 }
 
@@ -199,6 +207,7 @@ function deleteShareData(db, id) {
 function handleShareData(data) {
     if (!data || data.type !== 'share-target') {
         debugLog('Invalid share data');
+        showToast('Invalid shared content', 'error');
         return;
     }
     
@@ -223,16 +232,25 @@ function handleShareData(data) {
         imageHandled = true;
     }
     
-    // Only populate text if NO image was shared
-    if (!imageHandled && (data.text || data.url) && jobPostInput) {
+    // Populate text/URL if provided (can coexist with images)
+    if ((data.text || data.url) && jobPostInput) {
         const sharedContent = formatSharedContent(data.title, data.url, data.text);
         jobPostInput.value = sharedContent;
-        debugLog('Shared text/URL populated (no image)');
-        showToast('Shared content received!', 'success');
+        debugLog('Shared text/URL populated');
+        
+        if (!imageHandled) {
+            showToast('Shared content received!', 'success');
+        } else {
+            showToast('Shared image and text received!', 'success');
+        }
+    } else if (imageHandled) {
+        // Only image, no text
+        showToast('Shared image received!', 'success');
     }
     
     if (!imageHandled && !data.text && !data.url) {
         debugLog('No valid files, text, or URL found in share data');
+        showToast('No content to share', 'warning');
     }
 }
 
