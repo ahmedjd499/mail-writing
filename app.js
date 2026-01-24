@@ -143,24 +143,46 @@ async function checkPendingShareData(shareId) {
         return;
     }
     
-    try {
-        const db = await openShareDB();
-        const shareData = await getShareData(db, shareId);
-        
-        if (shareData) {
-            debugLog(`Found pending share data in IndexedDB with ID: ${shareId}`);
-            handleShareData(shareData);
+    // Retry logic to handle race condition where service worker might still be writing
+    const maxRetries = 3;
+    const retryDelay = 200; // ms
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        let db = null;
+        try {
+            db = await openShareDB();
+            const shareData = await getShareData(db, shareId);
             
-            // Clean up the data after using it
-            await deleteShareData(db, shareId);
-            debugLog(`Cleaned up share data with ID: ${shareId}`);
-        } else {
-            debugLog(`No pending share data found in IndexedDB with ID: ${shareId}`);
+            if (shareData) {
+                debugLog(`Found pending share data in IndexedDB with ID: ${shareId} (attempt ${attempt})`);
+                handleShareData(shareData);
+                
+                // Clean up the data after using it
+                await deleteShareData(db, shareId);
+                debugLog(`Cleaned up share data with ID: ${shareId}`);
+                db.close();
+                return; // Success, exit the function
+            } else if (attempt < maxRetries) {
+                debugLog(`No share data found on attempt ${attempt}, retrying in ${retryDelay}ms...`);
+                db.close();
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            } else {
+                debugLog(`No pending share data found in IndexedDB with ID: ${shareId} after ${maxRetries} attempts`);
+                db.close();
+            }
+        } catch (error) {
+            // Close the database if it was opened
+            if (db) {
+                try { db.close(); } catch (e) { /* ignore close errors */ }
+            }
+            console.error(`Error checking pending share data (attempt ${attempt}):`, error);
+            if (attempt >= maxRetries) {
+                debugLog('Error checking IndexedDB: ' + error.message);
+                showToast('Error loading shared content', 'error');
+            } else {
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
         }
-    } catch (error) {
-        console.error('Error checking pending share data:', error);
-        debugLog('Error checking IndexedDB: ' + error.message);
-        showToast('Error loading shared content', 'error');
     }
 }
 
