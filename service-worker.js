@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-email-generator-v7';
+const CACHE_NAME = 'job-email-generator-v8';
 const urlsToCache = [
 
 ];
@@ -32,9 +32,12 @@ function storeShareData(db, shareData) {
       timestamp: Date.now()
     };
     
-    const request = store.put(dataWithTimestamp);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    store.put(dataWithTimestamp);
+    
+    // Wait for transaction to complete (not just request success)
+    // This ensures data is actually committed to disk before we redirect
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
   });
 }
 
@@ -153,6 +156,10 @@ self.addEventListener('fetch', event => {
             const db = await openShareDB();
             await storeShareData(db, shareData);
             console.log(`[SW] Share data stored in IndexedDB with ID: ${shareId}`);
+            // Close the database connection
+            db.close();
+            // Small delay to ensure transaction is fully committed
+            await new Promise(resolve => setTimeout(resolve, 50));
           } catch (err) {
             console.error('[SW] Failed to store share data in IndexedDB:', err);
             // Continue anyway, the redirect URL will still have the shareId.
