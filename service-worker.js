@@ -155,7 +155,7 @@ self.addEventListener('fetch', event => {
             console.log(`[SW] Share data stored in IndexedDB with ID: ${shareId}`);
           } catch (err) {
             console.error('[SW] Failed to store share data in IndexedDB:', err);
-            // Continue anyway, the redirect URL will still have the shareId
+            // Continue anyway, the redirect URL will still have the shareId.
           }
           
           // Include shareId in redirect URL so the app can retrieve the share data
