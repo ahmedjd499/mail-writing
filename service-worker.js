@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-email-generator-v6';
+const CACHE_NAME = 'job-email-generator-v7';
 const urlsToCache = [
 
 ];
@@ -74,6 +74,8 @@ self.addEventListener('fetch', event => {
   // Use endsWith so this works when the site is hosted under a repo subpath (GitHub Pages)
   if (event.request.method === 'POST' && reqUrl.pathname.endsWith('/share-target')) {
     event.respondWith((async () => {
+      let redirectUrl = self.registration.scope;
+      
       try {
         const formData = await event.request.formData();
         const title = formData.get('title');
@@ -144,7 +146,7 @@ self.addEventListener('fetch', event => {
           client.postMessage(shareData);
           await new Promise(resolve => setTimeout(resolve, 100));
         } else {
-          // For new windows, store in IndexedDB as fallback
+          // For new windows, store in IndexedDB and include shareId in redirect URL
           console.log('[SW] Opening new window');
           
           try {
@@ -153,24 +155,30 @@ self.addEventListener('fetch', event => {
             console.log(`[SW] Share data stored in IndexedDB with ID: ${shareId}`);
           } catch (err) {
             console.error('[SW] Failed to store share data in IndexedDB:', err);
-            // Continue anyway, message posting might still work
+            // Continue anyway, the redirect URL will still have the shareId
           }
           
-          client = await clients.openWindow(self.registration.scope + '?source=share&shareId=' + shareId);
+          // Include shareId in redirect URL so the app can retrieve the share data
+          // This is critical for mobile PWAs where clients.openWindow() may not work
+          redirectUrl = self.registration.scope + '?source=share&shareId=' + shareId;
           
-          // Note: We stored in IndexedDB, so the new window will check there on load
-          // Message posting here is unreliable for new windows, so we don't retry
-          if (!client) {
-            console.error('[SW] Failed to open new window');
+          // Also try to open window (may work on some platforms)
+          try {
+            client = await clients.openWindow(redirectUrl);
+            if (!client) {
+              console.log('[SW] clients.openWindow returned null, relying on redirect');
+            }
+          } catch (err) {
+            console.log('[SW] clients.openWindow failed, relying on redirect:', err.message);
           }
         }
       } catch (err) {
         console.error('[SW] Error handling /share-target POST:', err);
       }
 
-      // Redirect to the scope root (homepage) after handling share
-      console.log('[SW] Redirecting to app');
-      return Response.redirect(self.registration.scope, 303);
+      // Redirect to the app (with shareId if this is a new window scenario)
+      console.log('[SW] Redirecting to:', redirectUrl);
+      return Response.redirect(redirectUrl, 303);
     })());
 
     return; // we've handled this request
