@@ -132,6 +132,12 @@ async function loadGroqModels(apiKey, selectedModel) {
     }
 }
 
+async function syncApiKeyAndModels() {
+    const apiKey = apiKeyInput.value.trim();
+    localStorage.setItem('groqApiKey', apiKey);
+    await loadGroqModels(apiKey, localStorage.getItem('selectedModel') || modelSelect.value);
+}
+
 // Debug logging function
 function debugLog(message) {
     const timestamp = new Date().toLocaleTimeString();
@@ -429,14 +435,17 @@ modelSelect.addEventListener('change', () => {
 
 // Save API key to localStorage when changed
 apiKeyInput.addEventListener('change', async () => {
-    localStorage.setItem('groqApiKey', apiKeyInput.value);
-    await loadGroqModels(apiKeyInput.value, localStorage.getItem('selectedModel') || modelSelect.value);
+    await syncApiKeyAndModels();
 });
 
 // Modal handlers
 openSettingsBtn.addEventListener('click', () => {
     settingsModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+    if (apiKeyInput.value.trim() && !modelSelect.value) {
+        syncApiKeyAndModels();
+    }
 });
 
 closeSettingsBtn.addEventListener('click', () => {
@@ -444,10 +453,19 @@ closeSettingsBtn.addEventListener('click', () => {
     document.body.style.overflow = 'auto';
 });
 
-saveSettingsBtn.addEventListener('click', () => {
+saveSettingsBtn.addEventListener('click', async () => {
+    await syncApiKeyAndModels();
     settingsModal.classList.add('hidden');
     document.body.style.overflow = 'auto';
     showToast('Settings saved successfully!', 'success');
+});
+
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (!localStorage.getItem('groqApiKey') && apiKeyInput.value.trim()) {
+            syncApiKeyAndModels();
+        }
+    }, 400);
 });
 
 // Close modal when clicking outside
