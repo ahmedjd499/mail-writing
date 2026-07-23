@@ -427,7 +427,7 @@ modelSelect.addEventListener('change', () => {
     localStorage.setItem('selectedModel', modelSelect.value);
 });
 
-// Save API key to localStorage when changed
+// Reload models when API key changes
 apiKeyInput.addEventListener('change', async () => {
     await syncApiKeyAndModels();
 });
