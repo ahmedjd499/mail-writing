@@ -134,7 +134,6 @@ async function loadGroqModels(apiKey, selectedModel) {
 
 async function syncApiKeyAndModels() {
     const apiKey = apiKeyInput.value.trim();
-    localStorage.setItem('groqApiKey', apiKey);
     await loadGroqModels(apiKey, localStorage.getItem('selectedModel') || modelSelect.value);
 }
 
@@ -195,13 +194,8 @@ function formatSharedContent(title, url, text) {
 window.addEventListener('DOMContentLoaded', async () => {
     debugLog('App loaded (DOMContentLoaded)');
     
-    const savedApiKey = localStorage.getItem('groqApiKey');
-    if (savedApiKey) {
-        apiKeyInput.value = savedApiKey;
-    }
-
     const savedModel = localStorage.getItem('selectedModel');
-    await loadGroqModels(savedApiKey || '', savedModel || undefined);
+    await loadGroqModels(apiKeyInput.value || '', savedModel || undefined);
 
     // Load saved CV if exists
     const savedCVName = localStorage.getItem('cvFileName');
@@ -462,7 +456,7 @@ saveSettingsBtn.addEventListener('click', async () => {
 
 window.addEventListener('load', () => {
     setTimeout(() => {
-        if (!localStorage.getItem('groqApiKey') && apiKeyInput.value.trim()) {
+        if (apiKeyInput.value.trim()) {
             syncApiKeyAndModels();
         }
     }, 400);
