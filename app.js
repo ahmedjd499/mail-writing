@@ -132,9 +132,13 @@ async function loadGroqModels(apiKey, selectedModel) {
     }
 }
 
-async function syncApiKeyAndModels() {
+async function syncApiKeyAndModels(preferredModel) {
     const apiKey = apiKeyInput.value.trim();
-    await loadGroqModels(apiKey, localStorage.getItem('selectedModel') || modelSelect.value);
+    const selectedModel = preferredModel || modelSelect.value || localStorage.getItem('selectedModel');
+    await loadGroqModels(apiKey, selectedModel);
+    if (modelSelect.value) {
+        localStorage.setItem('selectedModel', modelSelect.value);
+    }
 }
 
 // Debug logging function
@@ -448,7 +452,11 @@ closeSettingsBtn.addEventListener('click', () => {
 });
 
 saveSettingsBtn.addEventListener('click', async () => {
-    await syncApiKeyAndModels();
+    const selectedModel = modelSelect.value;
+    if (selectedModel) {
+        localStorage.setItem('selectedModel', selectedModel);
+    }
+    await syncApiKeyAndModels(selectedModel);
     settingsModal.classList.add('hidden');
     document.body.style.overflow = 'auto';
     showToast('Settings saved successfully!', 'success');
