@@ -132,6 +132,11 @@ async function loadGroqModels(apiKey, selectedModel) {
     }
 }
 
+async function syncApiKeyAndModels() {
+    const apiKey = apiKeyInput.value.trim();
+    await loadGroqModels(apiKey, localStorage.getItem('selectedModel') || modelSelect.value);
+}
+
 // Debug logging function
 function debugLog(message) {
     const timestamp = new Date().toLocaleTimeString();
@@ -189,13 +194,8 @@ function formatSharedContent(title, url, text) {
 window.addEventListener('DOMContentLoaded', async () => {
     debugLog('App loaded (DOMContentLoaded)');
     
-    const savedApiKey = localStorage.getItem('groqApiKey');
-    if (savedApiKey) {
-        apiKeyInput.value = savedApiKey;
-    }
-
     const savedModel = localStorage.getItem('selectedModel');
-    await loadGroqModels(savedApiKey || '', savedModel || undefined);
+    await loadGroqModels(apiKeyInput.value || '', savedModel || undefined);
 
     // Load saved CV if exists
     const savedCVName = localStorage.getItem('cvFileName');
@@ -427,16 +427,19 @@ modelSelect.addEventListener('change', () => {
     localStorage.setItem('selectedModel', modelSelect.value);
 });
 
-// Save API key to localStorage when changed
+// Reload models when API key changes
 apiKeyInput.addEventListener('change', async () => {
-    localStorage.setItem('groqApiKey', apiKeyInput.value);
-    await loadGroqModels(apiKeyInput.value, localStorage.getItem('selectedModel') || modelSelect.value);
+    await syncApiKeyAndModels();
 });
 
 // Modal handlers
 openSettingsBtn.addEventListener('click', () => {
     settingsModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+    if (apiKeyInput.value.trim() && !modelSelect.value) {
+        syncApiKeyAndModels();
+    }
 });
 
 closeSettingsBtn.addEventListener('click', () => {
@@ -444,10 +447,19 @@ closeSettingsBtn.addEventListener('click', () => {
     document.body.style.overflow = 'auto';
 });
 
-saveSettingsBtn.addEventListener('click', () => {
+saveSettingsBtn.addEventListener('click', async () => {
+    await syncApiKeyAndModels();
     settingsModal.classList.add('hidden');
     document.body.style.overflow = 'auto';
     showToast('Settings saved successfully!', 'success');
+});
+
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (apiKeyInput.value.trim()) {
+            syncApiKeyAndModels();
+        }
+    }, 400);
 });
 
 // Close modal when clicking outside
