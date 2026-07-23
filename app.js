@@ -48,6 +48,89 @@ let uploadedScreenshot = null;
 let uploadedCV = null;
 let cvText = '';
 let cvFileData = null; // Store file data for attachment
+const fallbackGroqModels = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+    'meta-llama/llama-4-maverick-17b-128e-instruct',
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'moonshotai/kimi-k2-instruct',
+    'moonshotai/kimi-k2-instruct-0905',
+    'qwen/qwen3-32b',
+    'allam-2-7b'
+];
+
+function modelLabelFromId(modelId) {
+    return modelId.split('/').map(part =>
+        part
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, char => char.toUpperCase())
+    ).join(' / ');
+}
+
+function populateModelSelect(models, selectedModel) {
+    modelSelect.innerHTML = '';
+
+    if (!models.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No models available';
+        option.disabled = true;
+        option.selected = true;
+        modelSelect.appendChild(option);
+        return;
+    }
+
+    models.forEach(modelId => {
+        const option = document.createElement('option');
+        option.value = modelId;
+        option.textContent = modelLabelFromId(modelId);
+        modelSelect.appendChild(option);
+    });
+
+    if (selectedModel && models.includes(selectedModel)) {
+        modelSelect.value = selectedModel;
+    } else {
+        modelSelect.value = models[0];
+        localStorage.setItem('selectedModel', modelSelect.value);
+    }
+}
+
+async function loadGroqModels(apiKey, selectedModel) {
+    const trimmedApiKey = apiKey.trim();
+    if (!trimmedApiKey) {
+        modelSelect.innerHTML = '<option value="" disabled selected>Enter API key to load available Groq models</option>';
+        return;
+    }
+
+    try {
+        const response = await fetch('https://api.groq.com/openai/v1/models', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + trimmedApiKey,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `Failed to fetch models: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const models = (data.data || [])
+            .map(model => model.id)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+
+        populateModelSelect(models, selectedModel);
+    } catch (error) {
+        console.error('Model fetch error:', error);
+        populateModelSelect(fallbackGroqModels, selectedModel);
+        showToast('Could not fetch latest models. Using fallback list.', 'error');
+    }
+}
 
 // Debug logging function
 function debugLog(message) {
@@ -112,9 +195,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     const savedModel = localStorage.getItem('selectedModel');
-    if (savedModel) {
-        modelSelect.value = savedModel;
-    }
+    await loadGroqModels(savedApiKey || '', savedModel || undefined);
 
     // Load saved CV if exists
     const savedCVName = localStorage.getItem('cvFileName');
@@ -347,8 +428,9 @@ modelSelect.addEventListener('change', () => {
 });
 
 // Save API key to localStorage when changed
-apiKeyInput.addEventListener('change', () => {
+apiKeyInput.addEventListener('change', async () => {
     localStorage.setItem('groqApiKey', apiKeyInput.value);
+    await loadGroqModels(apiKeyInput.value, localStorage.getItem('selectedModel') || modelSelect.value);
 });
 
 // Modal handlers
@@ -631,6 +713,11 @@ generateBtn.addEventListener('click', async () => {
 
     if (!jobPost && !uploadedScreenshot) {
         showToast('Please paste a job post or upload a screenshot', 'error');
+        return;
+    }
+
+    if (!model) {
+        showToast('Please select a model', 'error');
         return;
     }
 
