@@ -160,20 +160,15 @@ async function syncApiKeyAndModels(preferredModel) {
     }
 }
 
-// Debug logging function
+// Debug logging function — also feeds the on-screen debug panel
 function debugLog(message) {
     const timestamp = new Date().toLocaleTimeString();
     const logEntry = `[${timestamp}] ${message}`;
     debugLogs.push(logEntry);
     console.log(logEntry);
 
-    // Keep only last 20 logs
-    if (debugLogs.length > 20) debugLogs.shift();
-
-    // Show in toast for important events
-    if (message.includes('share-target') || message.includes('Shared')) {
-        showToast(message, 'info');
-    }
+    // Keep only last 50 logs
+    if (debugLogs.length > 50) debugLogs.shift();
 }
 
 // Add debug panel toggle (triple-tap bottom-left corner)
@@ -223,16 +218,24 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // Check for share source in URL
     const urlParams = new URLSearchParams(window.location.search);
+    debugLog(`URL params: ${window.location.search || '(none)'}`);
     if (urlParams.get('source') === 'share') {
         const shareId = urlParams.get('shareId');
-        debugLog(`App opened from share intent, shareId: ${shareId || 'none'}`);
+        debugLog(`Share intent detected — shareId: ${shareId || 'MISSING'}`);
+
+        // Auto-open debug panel so logs are visible immediately
+        const panel = document.getElementById('debugPanel');
+        if (panel) panel.style.display = 'flex';
 
         // Clean the URL immediately so a refresh doesn't re-process
         history.replaceState({}, '', window.location.pathname);
+        debugLog('URL cleaned');
 
         // Check IndexedDB for pending share data — retry a few times to
         // handle the race where the SW hasn't finished writing yet
         await checkPendingShareData(shareId);
+    } else {
+        debugLog('No share intent in URL');
     }
 });
 
@@ -240,34 +243,43 @@ window.addEventListener('DOMContentLoaded', async () => {
 // Retries with backoff because the SW may still be writing when the page loads
 async function checkPendingShareData(shareId) {
     if (!shareId) {
-        debugLog('No shareId provided, skipping IndexedDB check');
+        debugLog('ERROR: checkPendingShareData called with no shareId');
         return;
     }
 
+    debugLog(`checkPendingShareData — shareId: ${shareId}`);
     const delays = [100, 300, 600, 1000, 1500]; // ms between retries
     for (let attempt = 0; attempt <= delays.length; attempt++) {
         try {
+            debugLog(`IndexedDB read attempt ${attempt + 1}/${delays.length + 1}...`);
             const db = await openShareDB();
             const shareData = await getShareData(db, shareId);
 
             if (shareData) {
-                debugLog(`Found share data in IndexedDB (attempt ${attempt + 1}): ${shareId}`);
+                debugLog(`✓ Found share data on attempt ${attempt + 1}`);
+                debugLog(`  → type: ${shareData.type}`);
+                debugLog(`  → title: ${shareData.title || '(empty)'}`);
+                debugLog(`  → url: ${shareData.url || '(empty)'}`);
+                debugLog(`  → text length: ${shareData.text?.length || 0}`);
+                debugLog(`  → serializedFiles: ${shareData.serializedFiles?.length || 0}`);
                 handleShareData(shareData);
                 await deleteShareData(db, shareId);
-                debugLog(`Cleaned up share data: ${shareId}`);
+                debugLog('Share data deleted from IndexedDB');
                 return;
+            } else {
+                debugLog(`  → not found yet`);
             }
         } catch (error) {
-            debugLog('IndexedDB read error: ' + error.message);
+            debugLog(`IndexedDB ERROR on attempt ${attempt + 1}: ${error.message}`);
         }
 
         if (attempt < delays.length) {
-            debugLog(`Share data not ready yet, retrying in ${delays[attempt]}ms...`);
+            debugLog(`Waiting ${delays[attempt]}ms before retry...`);
             await new Promise(r => setTimeout(r, delays[attempt]));
         }
     }
 
-    debugLog('Share data not found in IndexedDB after all retries: ' + shareId);
+    debugLog('ERROR: Share data not found after all retries — shareId: ' + shareId);
     showToast('Could not load shared content', 'error');
 }
 
@@ -313,35 +325,42 @@ function deleteShareData(db, id) {
 // Handle share data (from service worker message or IndexedDB)
 function handleShareData(data) {
     if (!data || data.type !== 'share-target') {
-        debugLog('Invalid share data');
+        debugLog(`handleShareData ERROR: invalid data — type=${data?.type}`);
         showToast('Invalid shared content', 'error');
         return;
     }
 
-    debugLog(`Processing share — text:${!!data.text} url:${!!data.url} files:${data.serializedFiles?.length || 0}`);
+    debugLog(`handleShareData — text:${!!data.text} url:${!!data.url} title:${!!data.title} serializedFiles:${data.serializedFiles?.length || 0}`);
 
     let imageHandled = false;
     let textHandled = false;
 
     // ── Image (screenshot) ──
-    // serializedFiles come from SW (data URL already converted), always prefer these
     const serialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
     if (serialized && serialized.dataUrl) {
-        debugLog(`Handling serialized image: ${serialized.name}`);
+        debugLog(`Handling image — name:${serialized.name} type:${serialized.type} size:${serialized.size} dataUrl length:${serialized.dataUrl.length}`);
         handleSharedImageData(serialized);
         imageHandled = true;
+    } else if (data.serializedFiles?.length) {
+        debugLog(`WARN: serializedFiles present but first entry has no dataUrl — ${JSON.stringify(Object.keys(data.serializedFiles[0]))}`);
+    } else {
+        debugLog('No serialized image files in share data');
     }
 
-    // ── Text / URL (LinkedIn post) ──
-    // Build a combined string from whatever we got
+    // ── Text / URL ──
     const sharedText = buildSharedText(data.title, data.url, data.text);
+    debugLog(`buildSharedText result length: ${sharedText.length}`);
     if (sharedText && jobPostInput) {
         jobPostInput.value = sharedText;
-        debugLog('Shared text/URL filled into textarea');
+        debugLog('✓ Text filled into textarea');
         textHandled = true;
+    } else if (!sharedText) {
+        debugLog('WARN: buildSharedText returned empty string');
+    } else {
+        debugLog('ERROR: jobPostInput element not found');
     }
 
-    // ── Toast feedback ──
+    // ── Toast ──
     if (imageHandled && textHandled) {
         showToast('Shared image and text received!', 'success');
     } else if (imageHandled) {
@@ -349,7 +368,7 @@ function handleShareData(data) {
     } else if (textHandled) {
         showToast('Shared content received!', 'success');
     } else {
-        debugLog('Nothing usable in share data');
+        debugLog('WARN: Nothing was handled in share data');
         showToast('Nothing to share', 'warning');
     }
 }
@@ -374,12 +393,16 @@ if ('serviceWorker' in navigator) {
     }
 
     navigator.serviceWorker.addEventListener('message', (event) => {
-        debugLog('Service worker message received');
+        debugLog('SW postMessage received');
         const data = event.data;
         if (!data || data.type !== 'share-target') {
-            debugLog(`Ignoring SW message type: ${data?.type}`);
+            debugLog(`Ignoring SW message — type: ${data?.type}`);
             return;
         }
+        debugLog(`SW message is share-target — text:${!!data.text} url:${!!data.url} files:${data.serializedFiles?.length || 0}`);
+        // Auto-open debug panel on SW message share too
+        const panel = document.getElementById('debugPanel');
+        if (panel) panel.style.display = 'flex';
         handleShareData(data);
     });
 }
