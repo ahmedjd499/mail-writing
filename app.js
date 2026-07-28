@@ -197,20 +197,6 @@ function showDebugPanel() {
     alert('Debug Logs:\n\n' + logs);
 }
 
-// Format shared content (URL, title, text) into a single string
-function formatSharedContent(title, url, text) {
-    let sharedContent = '';
-    if (url) {
-        sharedContent += `URL: ${url}\n\n`;
-    }
-    if (text) {
-        sharedContent += text;
-    }
-    if (title && title !== text) {
-        sharedContent = `Title: ${title}\n\n${sharedContent}`;
-    }
-    return sharedContent.trim();
-}
 
 
 // Load saved data from localStorage
@@ -241,37 +227,48 @@ window.addEventListener('DOMContentLoaded', async () => {
         const shareId = urlParams.get('shareId');
         debugLog(`App opened from share intent, shareId: ${shareId || 'none'}`);
 
-        // Check IndexedDB for pending share data
+        // Clean the URL immediately so a refresh doesn't re-process
+        history.replaceState({}, '', window.location.pathname);
+
+        // Check IndexedDB for pending share data — retry a few times to
+        // handle the race where the SW hasn't finished writing yet
         await checkPendingShareData(shareId);
     }
 });
 
 // Check IndexedDB for share data that was stored by service worker
+// Retries with backoff because the SW may still be writing when the page loads
 async function checkPendingShareData(shareId) {
     if (!shareId) {
         debugLog('No shareId provided, skipping IndexedDB check');
         return;
     }
 
-    try {
-        const db = await openShareDB();
-        const shareData = await getShareData(db, shareId);
+    const delays = [100, 300, 600, 1000, 1500]; // ms between retries
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+        try {
+            const db = await openShareDB();
+            const shareData = await getShareData(db, shareId);
 
-        if (shareData) {
-            debugLog(`Found pending share data in IndexedDB with ID: ${shareId}`);
-            handleShareData(shareData);
-
-            // Clean up the data after using it
-            await deleteShareData(db, shareId);
-            debugLog(`Cleaned up share data with ID: ${shareId}`);
-        } else {
-            debugLog(`No pending share data found in IndexedDB with ID: ${shareId}`);
+            if (shareData) {
+                debugLog(`Found share data in IndexedDB (attempt ${attempt + 1}): ${shareId}`);
+                handleShareData(shareData);
+                await deleteShareData(db, shareId);
+                debugLog(`Cleaned up share data: ${shareId}`);
+                return;
+            }
+        } catch (error) {
+            debugLog('IndexedDB read error: ' + error.message);
         }
-    } catch (error) {
-        console.error('Error checking pending share data:', error);
-        debugLog('Error checking IndexedDB: ' + error.message);
-        showToast('Error loading shared content', 'error');
+
+        if (attempt < delays.length) {
+            debugLog(`Share data not ready yet, retrying in ${delays[attempt]}ms...`);
+            await new Promise(r => setTimeout(r, delays[attempt]));
+        }
     }
+
+    debugLog('Share data not found in IndexedDB after all retries: ' + shareId);
+    showToast('Could not load shared content', 'error');
 }
 
 // IndexedDB helper functions
@@ -321,51 +318,49 @@ function handleShareData(data) {
         return;
     }
 
-    debugLog(`Processing share data: text=${!!data.text}, url=${!!data.url}, files=${data.files?.length || 0}, serializedFiles=${data.serializedFiles?.length || 0}`);
-
-    // Check for files FIRST (images have priority over text)
-    const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
-    const firstFile = data.files && data.files.length ? data.files[0] : null;
+    debugLog(`Processing share — text:${!!data.text} url:${!!data.url} files:${data.serializedFiles?.length || 0}`);
 
     let imageHandled = false;
+    let textHandled = false;
 
-    // Try serialized files first (more reliable from service worker)
-    if (firstSerialized && firstSerialized.dataUrl) {
-        debugLog(`Processing serialized file: ${firstSerialized.name}, size: ${firstSerialized.size}`);
-        handleSharedImageData(firstSerialized);
-        imageHandled = true;
-    }
-    // Fallback to regular File objects
-    else if (firstFile && isBlobLike(firstFile)) {
-        debugLog('Processing File object');
-        handleScreenshotUpload(firstFile);
+    // ── Image (screenshot) ──
+    // serializedFiles come from SW (data URL already converted), always prefer these
+    const serialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
+    if (serialized && serialized.dataUrl) {
+        debugLog(`Handling serialized image: ${serialized.name}`);
+        handleSharedImageData(serialized);
         imageHandled = true;
     }
 
-    // Populate text/URL if provided (can coexist with images)
-    let toastMessage = null;
+    // ── Text / URL (LinkedIn post) ──
+    // Build a combined string from whatever we got
+    const sharedText = buildSharedText(data.title, data.url, data.text);
+    if (sharedText && jobPostInput) {
+        jobPostInput.value = sharedText;
+        debugLog('Shared text/URL filled into textarea');
+        textHandled = true;
+    }
 
-    if ((data.text || data.url) && jobPostInput) {
-        const sharedContent = formatSharedContent(data.title, data.url, data.text);
-        jobPostInput.value = sharedContent;
-        debugLog('Shared text/URL populated');
-
-        if (imageHandled) {
-            toastMessage = 'Shared image and text received!';
-        } else {
-            toastMessage = 'Shared content received!';
-        }
+    // ── Toast feedback ──
+    if (imageHandled && textHandled) {
+        showToast('Shared image and text received!', 'success');
     } else if (imageHandled) {
-        toastMessage = 'Shared image received!';
+        showToast('Shared screenshot received!', 'success');
+    } else if (textHandled) {
+        showToast('Shared content received!', 'success');
+    } else {
+        debugLog('Nothing usable in share data');
+        showToast('Nothing to share', 'warning');
     }
+}
 
-    if (!imageHandled && !data.text && !data.url) {
-        debugLog('No valid files, text, or URL found in share data');
-        toastMessage = 'No content to share';
-        showToast(toastMessage, 'warning');
-    } else if (toastMessage) {
-        showToast(toastMessage, 'success');
-    }
+// Build a clean string from share params — put URL first so the AI can see it
+function buildSharedText(title, url, text) {
+    const parts = [];
+    if (title && title.trim()) parts.push(title.trim());
+    if (url && url.trim()) parts.push(url.trim());
+    if (text && text.trim()) parts.push(text.trim());
+    return parts.join('\n\n');
 }
 
 // Register service worker and listen for Web Share Target messages
@@ -380,19 +375,11 @@ if ('serviceWorker' in navigator) {
 
     navigator.serviceWorker.addEventListener('message', (event) => {
         debugLog('Service worker message received');
-
         const data = event.data;
-        if (!data) {
-            debugLog('No data in message');
+        if (!data || data.type !== 'share-target') {
+            debugLog(`Ignoring SW message type: ${data?.type}`);
             return;
         }
-
-        if (data.type !== 'share-target') {
-            debugLog(`Message type: ${data.type} (not share-target)`);
-            return;
-        }
-
-        // Use the centralized handleShareData function
         handleShareData(data);
     });
 }
@@ -401,18 +388,16 @@ if ('serviceWorker' in navigator) {
 if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
     window.launchQueue.setConsumer(async (launchParams) => {
         if (!launchParams) return;
-
         const { files = [], title, text, url } = launchParams;
 
-        // Handle text/URL (LinkedIn posts, etc.)
-        if ((text || url) && jobPostInput) {
-            const sharedContent = formatSharedContent(title, url, text);
-            jobPostInput.value = sharedContent;
+        // Text/URL
+        if ((text || url || title) && jobPostInput) {
+            jobPostInput.value = buildSharedText(title, url, text);
             showToast('Shared content received!', 'success');
         }
 
-        // Handle files (screenshots, etc.)
-        if (files.length && typeof handleScreenshotUpload === 'function') {
+        // Files (images)
+        if (files.length) {
             for (const fileHandle of files) {
                 try {
                     const file = await fileHandle.getFile();
@@ -421,8 +406,8 @@ if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'functi
                         showToast('Shared image received!', 'success');
                         break;
                     }
-                } catch (error) {
-                    console.error('Failed to read shared file from launchQueue:', error);
+                } catch (err) {
+                    console.error('launchQueue file read failed:', err);
                 }
             }
         }
