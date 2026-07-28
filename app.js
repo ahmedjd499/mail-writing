@@ -21,6 +21,7 @@ const settingsModal = document.getElementById('settingsModal');
 const openSettingsBtn = document.getElementById('openSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const emailLanguageSelect = document.getElementById('emailLanguage');
 
 // New elements for screenshot and CV
 const screenshotInput = document.getElementById('screenshotInput');
@@ -51,15 +52,33 @@ let cvFileData = null; // Store file data for attachment
 const fallbackGroqModels = [
     'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
-    'meta-llama/llama-4-scout-17b-16e-instruct',
-    'meta-llama/llama-4-maverick-17b-128e-instruct',
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
-    'moonshotai/kimi-k2-instruct',
-    'moonshotai/kimi-k2-instruct-0905',
-    'qwen/qwen3-32b',
+    'openai/gpt-oss-safeguard-20b',
+    'qwen/qwen3.6-27b',
+    'groq/compound',
+    'groq/compound-mini',
     'allam-2-7b'
 ];
+
+// Language display names used in prompts
+const languageNames = {
+    en: 'English',
+    fr: 'French',
+    ar: 'Arabic',
+    es: 'Spanish',
+    de: 'German',
+    it: 'Italian',
+    pt: 'Portuguese',
+    nl: 'Dutch',
+    ru: 'Russian',
+    zh: 'Chinese',
+    ja: 'Japanese'
+};
+
+function getSelectedLanguage() {
+    return emailLanguageSelect ? emailLanguageSelect.value : 'en';
+}
 
 function modelLabelFromId(modelId) {
     return modelId.split('/').map(part =>
@@ -147,10 +166,10 @@ function debugLog(message) {
     const logEntry = `[${timestamp}] ${message}`;
     debugLogs.push(logEntry);
     console.log(logEntry);
-    
+
     // Keep only last 20 logs
     if (debugLogs.length > 20) debugLogs.shift();
-    
+
     // Show in toast for important events
     if (message.includes('share-target') || message.includes('Shared')) {
         showToast(message, 'info');
@@ -165,7 +184,7 @@ document.addEventListener('click', (e) => {
         tapCount++;
         clearTimeout(tapTimer);
         tapTimer = setTimeout(() => tapCount = 0, 1000);
-        
+
         if (tapCount === 3) {
             tapCount = 0;
             showDebugPanel();
@@ -197,9 +216,15 @@ function formatSharedContent(title, url, text) {
 // Load saved data from localStorage
 window.addEventListener('DOMContentLoaded', async () => {
     debugLog('App loaded (DOMContentLoaded)');
-    
+
     const savedModel = localStorage.getItem('selectedModel');
     await loadGroqModels(apiKeyInput.value || '', savedModel || undefined);
+
+    // Restore saved language
+    const savedLanguage = localStorage.getItem('emailLanguage');
+    if (savedLanguage && emailLanguageSelect) {
+        emailLanguageSelect.value = savedLanguage;
+    }
 
     // Load saved CV if exists
     const savedCVName = localStorage.getItem('cvFileName');
@@ -209,13 +234,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         cvFileName.textContent = savedCVName;
         cvStatus.classList.remove('hidden');
     }
-    
+
     // Check for share source in URL
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('source') === 'share') {
         const shareId = urlParams.get('shareId');
         debugLog(`App opened from share intent, shareId: ${shareId || 'none'}`);
-        
+
         // Check IndexedDB for pending share data
         await checkPendingShareData(shareId);
     }
@@ -227,15 +252,15 @@ async function checkPendingShareData(shareId) {
         debugLog('No shareId provided, skipping IndexedDB check');
         return;
     }
-    
+
     try {
         const db = await openShareDB();
         const shareData = await getShareData(db, shareId);
-        
+
         if (shareData) {
             debugLog(`Found pending share data in IndexedDB with ID: ${shareId}`);
             handleShareData(shareData);
-            
+
             // Clean up the data after using it
             await deleteShareData(db, shareId);
             debugLog(`Cleaned up share data with ID: ${shareId}`);
@@ -253,10 +278,10 @@ async function checkPendingShareData(shareId) {
 function openShareDB() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open('ShareTargetDB', 1);
-        
+
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);
-        
+
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
             if (!db.objectStoreNames.contains('shares')) {
@@ -271,7 +296,7 @@ function getShareData(db, id) {
         const transaction = db.transaction(['shares'], 'readonly');
         const store = transaction.objectStore('shares');
         const request = store.get(id);
-        
+
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });
@@ -282,7 +307,7 @@ function deleteShareData(db, id) {
         const transaction = db.transaction(['shares'], 'readwrite');
         const store = transaction.objectStore('shares');
         const request = store.delete(id);
-        
+
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
     });
@@ -295,15 +320,15 @@ function handleShareData(data) {
         showToast('Invalid shared content', 'error');
         return;
     }
-    
+
     debugLog(`Processing share data: text=${!!data.text}, url=${!!data.url}, files=${data.files?.length || 0}, serializedFiles=${data.serializedFiles?.length || 0}`);
 
     // Check for files FIRST (images have priority over text)
     const firstSerialized = data.serializedFiles && data.serializedFiles.length ? data.serializedFiles[0] : null;
     const firstFile = data.files && data.files.length ? data.files[0] : null;
-    
+
     let imageHandled = false;
-    
+
     // Try serialized files first (more reliable from service worker)
     if (firstSerialized && firstSerialized.dataUrl) {
         debugLog(`Processing serialized file: ${firstSerialized.name}, size: ${firstSerialized.size}`);
@@ -316,15 +341,15 @@ function handleShareData(data) {
         handleScreenshotUpload(firstFile);
         imageHandled = true;
     }
-    
+
     // Populate text/URL if provided (can coexist with images)
     let toastMessage = null;
-    
+
     if ((data.text || data.url) && jobPostInput) {
         const sharedContent = formatSharedContent(data.title, data.url, data.text);
         jobPostInput.value = sharedContent;
         debugLog('Shared text/URL populated');
-        
+
         if (imageHandled) {
             toastMessage = 'Shared image and text received!';
         } else {
@@ -333,7 +358,7 @@ function handleShareData(data) {
     } else if (imageHandled) {
         toastMessage = 'Shared image received!';
     }
-    
+
     if (!imageHandled && !data.text && !data.url) {
         debugLog('No valid files, text, or URL found in share data');
         toastMessage = 'No content to share';
@@ -355,13 +380,13 @@ if ('serviceWorker' in navigator) {
 
     navigator.serviceWorker.addEventListener('message', (event) => {
         debugLog('Service worker message received');
-        
+
         const data = event.data;
         if (!data) {
             debugLog('No data in message');
             return;
         }
-        
+
         if (data.type !== 'share-target') {
             debugLog(`Message type: ${data.type} (not share-target)`);
             return;
@@ -409,6 +434,13 @@ modelSelect.addEventListener('change', () => {
     localStorage.setItem('selectedModel', modelSelect.value);
 });
 
+// Save language selection
+if (emailLanguageSelect) {
+    emailLanguageSelect.addEventListener('change', () => {
+        localStorage.setItem('emailLanguage', emailLanguageSelect.value);
+    });
+}
+
 // Reload models when API key changes
 apiKeyInput.addEventListener('change', async () => {
     await syncApiKeyAndModels();
@@ -433,6 +465,9 @@ saveSettingsBtn.addEventListener('click', async () => {
     const selectedModel = modelSelect.value;
     if (selectedModel) {
         localStorage.setItem('selectedModel', selectedModel);
+    }
+    if (emailLanguageSelect) {
+        localStorage.setItem('emailLanguage', emailLanguageSelect.value);
     }
     await syncApiKeyAndModels(selectedModel);
     settingsModal.classList.add('hidden');
@@ -596,10 +631,10 @@ function handleSharedImageData(sharedFile) {
     }
 
     debugLog(`Setting shared image, size: ${dataUrl.length}`);
-    
+
     // Set the uploaded screenshot state
     uploadedScreenshot = dataUrl;
-    
+
     // Update preview image
     if (previewImg) {
         previewImg.src = dataUrl;
@@ -612,7 +647,7 @@ function handleSharedImageData(sharedFile) {
             showToast('Failed to display shared image', 'error');
         };
     }
-    
+
     // Show image preview, hide drop zone
     if (imagePreview) {
         imagePreview.classList.remove('hidden');
@@ -736,7 +771,7 @@ generateBtn.addEventListener('click', async () => {
         displayJobInfo(jobInfoData);
 
         // Step 2: Generate email with CV context
-        const emailData = await generateEmail(apiKey, model, jobPostText, additionalInfo, jobInfoData);
+        const emailData = await generateEmail(apiKey, model, jobPostText, additionalInfo, jobInfoData, getSelectedLanguage());
         displayEmail(emailData);
 
         showToast('Email generated successfully!', 'success');
@@ -759,7 +794,7 @@ async function extractTextFromImage(apiKey, model, imageBase64) {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Vision-capable model
+                model: 'qwen/qwen3.6-27b', // Vision-capable model
                 messages: [
                     {
                         role: 'user',
@@ -855,7 +890,8 @@ Return ONLY the JSON object, no additional text.`;
 }
 
 // Generate Email using Groq
-async function generateEmail(apiKey, model, jobPost, additionalInfo, jobInfoData) {
+async function generateEmail(apiKey, model, jobPost, additionalInfo, jobInfoData, language = 'en') {
+    const langName = languageNames[language] || 'English';
     let cvContext = '';
 
     console.log('CV Text Length:', cvText.length);
@@ -873,6 +909,8 @@ async function generateEmail(apiKey, model, jobPost, additionalInfo, jobInfoData
     }
 
     const prompt = `You are a professional job application email writer. Based on the following job post and information, write a compelling and professional job application email.
+
+IMPORTANT: Write the entire email (subject line and body) in ${langName}. Do not use any other language.
 
 Job Post:
 ${jobPost}
@@ -960,7 +998,20 @@ Return ONLY the JSON object.`;
 
         // Final fallback: extract any text that looks like subject/body
         const lines = response.split('\n');
-        let subject = `Application for ${jobInfoData.jobTitle} Position`;
+        const fallbackSubjects = {
+            en: `Application for ${jobInfoData.jobTitle} Position`,
+            fr: `Candidature pour le poste de ${jobInfoData.jobTitle}`,
+            ar: `طلب وظيفة ${jobInfoData.jobTitle}`,
+            es: `Solicitud para el puesto de ${jobInfoData.jobTitle}`,
+            de: `Bewerbung als ${jobInfoData.jobTitle}`,
+            it: `Candidatura per ${jobInfoData.jobTitle}`,
+            pt: `Candidatura para ${jobInfoData.jobTitle}`,
+            nl: `Sollicitatie voor ${jobInfoData.jobTitle}`,
+            ru: `Заявка на должность ${jobInfoData.jobTitle}`,
+            zh: `申请${jobInfoData.jobTitle}职位`,
+            ja: `${jobInfoData.jobTitle}への応募`
+        };
+        let subject = fallbackSubjects[language] || fallbackSubjects.en;
         let body = response;
 
         // Try to find subject line
