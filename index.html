@@ -353,33 +353,6 @@
         </div>
     </div>
 
-    <!-- ── Debug Log Panel ──────────────────────────────────────────────── -->
-    <div id="debugPanel" class=" fixed bottom-0 left-0 right-0 z-50 bg-gray-900 text-green-400 font-mono text-xs"
-        style="max-height:45vh; display:flex; flex-direction:column;">
-        <div class="flex items-center justify-between px-3 py-2 bg-gray-800 border-t border-gray-600 shrink-0">
-            <span class="font-semibold text-white">🐛 Share Debug Log</span>
-            <div class="flex gap-2">
-                <button id="debugCopyBtn"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">Copy</button>
-                <button id="debugClearBtn"
-                    class="bg-yellow-600 hover:bg-yellow-700 text-white px-2 py-1 rounded text-xs">Clear</button>
-                <button id="debugCloseBtn"
-                    class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">✕</button>
-            </div>
-        </div>
-        <div id="debugLogList" class="overflow-y-auto px-3 py-2 space-y-1 flex-1" style="overscroll-behavior:contain;">
-            aaaaaaaaaa
-            <br>
-            xxxxxxxxxxx
-            
-        </div>
-    </div>
-
-    <!-- Floating debug toggle (triple-tap area replaced by a visible button for testing) -->
-    <button id="debugToggleBtn" title="Toggle debug log"
-        class="fixed bottom-4 left-4 z-50 bg-gray-800 text-white rounded-full w-9 h-9 flex items-center justify-center text-base shadow-lg opacity-60 hover:opacity-100"
-        style="font-size:18px;">🐛</button>
-
     <script src="app.js"></script>
 
     <script>
@@ -401,14 +374,20 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            setTimeout(() => { installPrompt.classList.remove('hidden'); }, 2000);
+
+            // Show install prompt after 2 seconds
+            setTimeout(() => {
+                installPrompt.classList.remove('hidden');
+            }, 2000);
         });
 
         installBtn.addEventListener('click', async () => {
             if (!deferredPrompt) return;
+
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             console.log(`User response: ${outcome}`);
+
             deferredPrompt = null;
             installPrompt.classList.add('hidden');
         });
@@ -417,70 +396,10 @@
             installPrompt.classList.add('hidden');
         });
 
+        // Show message if app is already installed
         window.addEventListener('appinstalled', () => {
             installPrompt.classList.add('hidden');
-            showToast('App installed successfully!', 'success');
-        });
-
-        // ── Debug panel wiring ──────────────────────────────────────────
-        const debugPanel = document.getElementById('debugPanel');
-        const debugLogList = document.getElementById('debugLogList');
-        const debugToggleBtn = document.getElementById('debugToggleBtn');
-        const debugCopyBtn = document.getElementById('debugCopyBtn');
-        const debugClearBtn = document.getElementById('debugClearBtn');
-        const debugCloseBtn = document.getElementById('debugCloseBtn');
-
-        debugToggleBtn.addEventListener('click', () => {
-            const visible = debugPanel.style.display !== 'none' && !debugPanel.classList.contains('hidden');
-            debugPanel.style.display = visible ? 'none' : 'flex';
-        });
-        debugCloseBtn.addEventListener('click', () => { debugPanel.style.display = 'none'; });
-        debugClearBtn.addEventListener('click', () => { debugLogList.innerHTML = ''; });
-        debugCopyBtn.addEventListener('click', () => {
-            const text = Array.from(debugLogList.querySelectorAll('div'))
-                .map(d => d.textContent).join('\n');
-            navigator.clipboard.writeText(text).then(() => alert('Copied!'));
-        });
-
-        // Override debugLog so entries appear in the panel too
-        window.addEventListener('DOMContentLoaded', () => {
-            const _origDebugLog = window.debugLog;
-            window.debugLog = function (msg) {
-                if (_origDebugLog) _origDebugLog(msg);
-                appendDebugLine(msg);
-            };
-        });
-
-        function appendDebugLine(msg) {
-            if (!debugLogList) return;
-            const ts = new Date().toLocaleTimeString();
-            const row = document.createElement('div');
-            row.className = 'border-b border-gray-700 pb-1';
-
-            // colour-code by keyword
-            const colour = msg.toLowerCase().includes('error') || msg.toLowerCase().includes('fail')
-                ? 'text-red-400'
-                : msg.toLowerCase().includes('warn') || msg.toLowerCase().includes('not found')
-                    ? 'text-yellow-400'
-                    : msg.toLowerCase().includes('found') || msg.toLowerCase().includes('success') || msg.toLowerCase().includes('filled')
-                        ? 'text-green-300'
-                        : 'text-green-400';
-
-            row.innerHTML = `<span class="text-gray-500">${ts}</span> <span class="${colour}">${escapeHtml(msg)}</span>`;
-            debugLogList.appendChild(row);
-            debugLogList.scrollTop = debugLogList.scrollHeight;
-        }
-
-        function escapeHtml(s) {
-            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        }
-
-        // Also capture global JS errors into the panel
-        window.addEventListener('error', (e) => {
-            appendDebugLine('JS ERROR: ' + e.message + ' (' + e.filename + ':' + e.lineno + ')');
-        });
-        window.addEventListener('unhandledrejection', (e) => {
-            appendDebugLine('UNHANDLED PROMISE: ' + (e.reason?.message || e.reason));
+            showToast('App installed successfully! 🎉', 'success');
         });
     </script>
 </body>
