@@ -49,13 +49,14 @@ let uploadedScreenshot = null;
 let uploadedCV = null;
 let cvText = '';
 let cvFileData = null; // Store file data for attachment
+const API_KEY_STORAGE_KEY = 'groqApiKey';
 const fallbackGroqModels = [
     'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
     'openai/gpt-oss-safeguard-20b',
-    'qwen/qwen3.6-27b',
+    'qwen/qwen3.8-27b',
     'groq/compound',
     'groq/compound-mini',
     'allam-2-7b'
@@ -78,6 +79,19 @@ const languageNames = {
 
 function getSelectedLanguage() {
     return emailLanguageSelect ? emailLanguageSelect.value : 'en';
+}
+
+function getSavedApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+}
+
+function saveApiKey(value) {
+    const trimmedValue = value.trim();
+    if (trimmedValue) {
+        localStorage.setItem(API_KEY_STORAGE_KEY, trimmedValue);
+    } else {
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+    }
 }
 
 function modelLabelFromId(modelId) {
@@ -217,6 +231,7 @@ function formatSharedContent(title, url, text) {
 window.addEventListener('DOMContentLoaded', async () => {
     debugLog('App loaded (DOMContentLoaded)');
 
+    apiKeyInput.value = getSavedApiKey();
     const savedModel = localStorage.getItem('selectedModel');
     await loadGroqModels(apiKeyInput.value || '', savedModel || undefined);
 
@@ -443,6 +458,7 @@ if (emailLanguageSelect) {
 
 // Reload models when API key changes
 apiKeyInput.addEventListener('change', async () => {
+    saveApiKey(apiKeyInput.value);
     await syncApiKeyAndModels();
 });
 
@@ -462,6 +478,7 @@ closeSettingsBtn.addEventListener('click', () => {
 });
 
 saveSettingsBtn.addEventListener('click', async () => {
+    saveApiKey(apiKeyInput.value);
     const selectedModel = modelSelect.value;
     if (selectedModel) {
         localStorage.setItem('selectedModel', selectedModel);
@@ -794,7 +811,7 @@ async function extractTextFromImage(apiKey, model, imageBase64) {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'qwen/qwen3.6-27b', // Vision-capable model
+                model: 'qwen/qwen3.8-27b', // Vision-capable model
                 messages: [
                     {
                         role: 'user',
